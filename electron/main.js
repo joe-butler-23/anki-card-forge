@@ -21,15 +21,21 @@ function createWindow() {
   // Hide the menu bar completely
   Menu.setApplicationMenu(null);
 
-  // Check if we are in dev mode (e.g. via npm run electron:dev)
-  // We assume port 5173 is the vite server
-  const isDev = !app.isPackaged;
+  // Determine if we are in dev mode
+  // Using env var is more reliable than isPackaged when running via nix wrapper
+  const isDev = process.env.NODE_ENV === 'development';
 
   if (isDev) {
     win.loadURL('http://localhost:5173');
     // win.webContents.openDevTools();
   } else {
-    win.loadFile(path.join(__dirname, '../dist/index.html'));
+    const distPath = path.join(__dirname, '../dist/index.html');
+    if (fs.existsSync(distPath)) {
+       win.loadFile(distPath);
+    } else {
+       console.error("Could not find dist/index.html at", distPath);
+       // Fallback or error handling
+    }
   }
 }
 
@@ -43,9 +49,25 @@ app.whenReady().then(() => {
   });
 });
 
-// Prompt editing functionality
-const promptsPath = path.join(__dirname, '../prompts/topics.ts');
-const backupsPath = path.join(__dirname, '../prompts/backups');
+// Prompt editing functionality 
+// Use user data directory for writable files
+const userDataPath = app.getPath('userData');
+const promptsPath = path.join(userDataPath, 'topics.ts');
+const backupsPath = path.join(userDataPath, 'backups');
+
+// Initialize prompts file if it doesn't exist in userData
+if (!fs.existsSync(promptsPath)) {
+  // Try to copy from installation directory (read-only source)
+  const sourcePromptsPath = path.join(__dirname, '../prompts/topics.ts');
+  if (fs.existsSync(sourcePromptsPath)) {
+    try {
+      fs.mkdirSync(path.dirname(promptsPath), { recursive: true });
+      fs.copyFileSync(sourcePromptsPath, promptsPath);
+    } catch (err) {
+      console.error("Failed to copy default prompts:", err);
+    }
+  }
+}
 
 // Ensure backups directory exists
 if (!fs.existsSync(backupsPath)) {
