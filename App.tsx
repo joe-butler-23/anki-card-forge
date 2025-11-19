@@ -47,6 +47,7 @@ const App: React.FC = () => {
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [customUrl, setCustomUrlState] = useState<string>('http://127.0.0.1:8765');
   const [geminiApiKey, setGeminiApiKeyState] = useState<string>(() => localStorage.getItem('geminiApiKey') || '');
+  const [geminiModel, setGeminiModelState] = useState<string>(() => localStorage.getItem('geminiModel') || 'gemini-pro');
   const [isCheckingConnection, setIsCheckingConnection] = useState<boolean>(false);
 
   // Card Management
@@ -76,6 +77,11 @@ const App: React.FC = () => {
   const setGeminiApiKey = (key: string) => {
     setGeminiApiKeyState(key);
     localStorage.setItem('geminiApiKey', key);
+  };
+
+  const setGeminiModel = (model: string) => {
+    setGeminiModelState(model);
+localStorage.setItem('geminiModel', model);
   };
   
   // Initial silent check
@@ -144,7 +150,7 @@ const App: React.FC = () => {
     }
 
     try {
-      const cards = await generateFlashcards(notes, selectedTopic, geminiApiKey, selectedImage, useThinking);
+      const cards = await generateFlashcards(notes, selectedTopic, geminiApiKey, geminiModel, selectedImage, useThinking);
       
       if (cards.length === 0) {
         setError("AI returned no cards. Try adding more detail to your notes.");
@@ -182,7 +188,7 @@ const App: React.FC = () => {
     setIsAmending(true);
     try {
       const currentCard = generatedCards[currentCardIndex];
-      const newCard = await amendFlashcard(currentCard, amendInstruction, selectedTopic, geminiApiKey);
+      const newCard = await amendFlashcard(currentCard, amendInstruction, selectedTopic, geminiApiKey, geminiModel);
       
       const updated = [...generatedCards];
       updated[currentCardIndex] = newCard;
@@ -257,6 +263,8 @@ const App: React.FC = () => {
         setCustomUrl={setCustomUrlState}
         geminiApiKey={geminiApiKey}
         setGeminiApiKey={setGeminiApiKey}
+        geminiModel={geminiModel}
+        setGeminiModel={setGeminiModel}
         isChecking={isCheckingConnection}
         onSave={handleUrlUpdate}
       />
