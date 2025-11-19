@@ -93,6 +93,7 @@
             mkdir -p $out/share/anki-card-forge
             cp package.json $out/share/anki-card-forge/
             cp -r electron $out/share/anki-card-forge/
+            cp -r prompts $out/share/anki-card-forge/
             cp -r dist $out/share/anki-card-forge/
             
             mkdir -p $out/bin
