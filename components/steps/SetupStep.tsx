@@ -74,13 +74,9 @@ export const SetupStep: React.FC<SetupStepProps> = ({
   const handleSavePrompt = async (topic: Topic, newPrompt: string) => {
     try {
       if (window.electronAPI) {
-        const success = await window.electronAPI.savePrompt(topic, newPrompt);
-        if (success) {
-          // Reload the prompts to get updated content
-          window.location.reload();
-        } else {
-          throw new Error('Failed to save prompt');
-        }
+        await window.electronAPI.savePrompt(topic, newPrompt);
+        // Reload the prompts to get updated content
+        window.location.reload();
       } else {
         // Fallback for browser - use localStorage
         localStorage.setItem(`prompt_${topic}`, newPrompt);
@@ -310,4 +306,4 @@ export const SetupStep: React.FC<SetupStepProps> = ({
       </div>
     </div>
   );
-};
+}
