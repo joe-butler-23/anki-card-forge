@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Anki Card Forge
+Comment=AI-powered flashcard generation for Anki
+Exec=anki-forge-app
+Icon=anki-forge-app
+Terminal=false
+Categories=Education;Office;
+Keywords=anki;flashcards;learning;education;ai;
+StartupNotify=true
+StartupWMClass=anki-forge-app
+MimeType=text/plain;

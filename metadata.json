@@ -1,0 +1,5 @@
+{
+  "name": "Anki Card Forge",
+  "description": "AI-powered flashcard generator that converts unstructured notes into structured Anki cards with review workflows and direct AnkiConnect integration.",
+  "requestFramePermissions": []
+}
