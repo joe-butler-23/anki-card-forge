@@ -20,17 +20,17 @@ let
     libdrm
     libnotify
     libpulseaudio
-    libx11
-    libxcb
-    libxcomposite
-    libxcursor
-    libxdamage
-    libxext
-    libxfixes
-    libxi
-    libxrandr
-    libxrender
-    libxss
+    xorg.libX11
+    xorg.libxcb
+    xorg.libXcomposite
+    xorg.libXcursor
+    xorg.libXdamage
+    xorg.libXext
+    xorg.libXfixes
+    xorg.libXi
+    xorg.libXrandr
+    xorg.libXrender
+    xorg.libXScrnSaver
     libxtst
     nspr
     nss

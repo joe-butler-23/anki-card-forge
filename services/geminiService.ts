@@ -17,15 +17,14 @@ export const generateFlashcards = async (
   notes: string,
   topic: Topic,
   apiKey: string,
+  userProvidedModel: string,
   image?: string | null,
   useThinking?: boolean
 ): Promise<Flashcard[]> => {
   const ai = getAiClient(apiKey);
 
-  // Determine model and config based on features used
-  let model = 'gemini-2.5-flash';
-  
-  // If image analysis or thinking mode is required, upgrade to Gemini 3 Pro
+  // Determine model based on user preference, but upgrade if image or thinking mode is used
+  let model = userProvidedModel;
   if (image || useThinking) {
     model = 'gemini-3-pro-preview';
   }
@@ -93,7 +92,8 @@ export const amendFlashcard = async (
   card: Flashcard,
   instruction: string,
   topic: Topic,
-  apiKey: string
+  apiKey: string,
+  model: string
 ): Promise<Flashcard> => {
   const ai = getAiClient(apiKey);
 
@@ -110,7 +110,7 @@ export const amendFlashcard = async (
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: model,
       contents: prompt,
       config: {
         systemInstruction: AMEND_SYSTEM_INSTRUCTION,
