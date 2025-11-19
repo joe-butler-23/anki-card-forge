@@ -67,7 +67,12 @@
         };
 
         # Build the package using npm instead of yarn
-        packages.default = pkgs.buildNpmPackage {
+        packages.default = let
+          apiKey = if builtins.pathExists ./.env.local then
+            builtins.readFile ./.env.local
+          else
+            "";
+        in pkgs.buildNpmPackage {
           pname = "anki-card-forge";
           version = "1.0.0";
           src = ./.;
@@ -99,7 +104,8 @@
             mkdir -p $out/bin
             makeWrapper ${pkgs.electron}/bin/electron $out/bin/anki-card-forge \
               --add-flags "$out/share/anki-card-forge" \
-              --prefix LD_LIBRARY_PATH : "${lib.makeLibraryPath runtimeLibs}"
+              --prefix LD_LIBRARY_PATH : "${lib.makeLibraryPath runtimeLibs}" \
+              --set-default VITE_API_KEY "${apiKey}"
             
             runHook postInstall
           '';

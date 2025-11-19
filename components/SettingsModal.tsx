@@ -7,6 +7,8 @@ interface SettingsModalProps {
   onClose: () => void;
   customUrl: string;
   setCustomUrl: (url: string) => void;
+  geminiApiKey: string;
+  setGeminiApiKey: (key: string) => void;
   isChecking: boolean;
   onSave: () => void;
 }
@@ -16,6 +18,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onClose,
   customUrl,
   setCustomUrl,
+  geminiApiKey,
+  setGeminiApiKey,
   isChecking,
   onSave
 }) => {
@@ -37,13 +41,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         
         <div className="p-6 space-y-5">
           <div>
+            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block">Gemini API Key</label>
+            <div className="flex gap-2">
+              <input 
+                type="password" 
+                value={geminiApiKey}
+                onChange={(e) => setGeminiApiKey(e.target.value)}
+                className="flex-grow px-3 py-2.5 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                placeholder="Enter your Gemini API Key"
+              />
+            </div>
+          </div>
+          <div>
             <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block">AnkiConnect URL</label>
             <div className="flex gap-2">
               <input 
                 type="text" 
                 value={customUrl}
                 onChange={(e) => setCustomUrl(e.target.value)}
-                className="flex-grow px-3 py-2.5 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                className="flex-grow px-3 py-2.5 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 dark:text-white rounded-lg text.sm focus:ring-2 focus:ring-indigo-500 outline-none"
                 placeholder="http://127.0.0.1:8765"
               />
             </div>
