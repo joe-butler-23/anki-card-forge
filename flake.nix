@@ -78,7 +78,7 @@
           npmDepsHash = "sha256-AqpLoEb8WSSsbTgxFyUtXu7R3nOvO9L2eEWsqSwEu88=";
 
           # Libraries required for the build process
-          nativeBuildInputs = [ pkgs.pkg-config ];
+          nativeBuildInputs = [ pkgs.pkg-config pkgs.makeWrapper ];
           buildInputs = [ pkgs.vips ]; # Common image processing dep for Vite apps
 
           # Environment variables for the build
@@ -89,8 +89,17 @@
           installPhase = ''
             runHook preInstall
             npm run build
+            
             mkdir -p $out/share/anki-card-forge
-            cp -r dist/* $out/share/anki-card-forge/
+            cp package.json $out/share/anki-card-forge/
+            cp -r electron $out/share/anki-card-forge/
+            cp -r dist $out/share/anki-card-forge/
+            
+            mkdir -p $out/bin
+            makeWrapper ${pkgs.electron}/bin/electron $out/bin/anki-card-forge \
+              --add-flags "$out/share/anki-card-forge" \
+              --prefix LD_LIBRARY_PATH : "${lib.makeLibraryPath runtimeLibs}"
+            
             runHook postInstall
           '';
         };
