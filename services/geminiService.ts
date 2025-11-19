@@ -6,8 +6,7 @@ import { AMEND_SYSTEM_INSTRUCTION } from '../prompts/amend';
 import { TOPIC_PROMPTS } from '../prompts/topics';
 
 // Helper to get the client
-const getAiClient = () => {
-  const apiKey = process.env.API_KEY;
+const getAiClient = (apiKey: string) => {
   if (!apiKey) {
     throw new Error("API Key is missing. Please check your environment configuration.");
   }
@@ -17,10 +16,11 @@ const getAiClient = () => {
 export const generateFlashcards = async (
   notes: string,
   topic: Topic,
+  apiKey: string,
   image?: string | null,
   useThinking?: boolean
 ): Promise<Flashcard[]> => {
-  const ai = getAiClient();
+  const ai = getAiClient(apiKey);
 
   // Determine model and config based on features used
   let model = 'gemini-2.5-flash';
@@ -92,9 +92,10 @@ export const generateFlashcards = async (
 export const amendFlashcard = async (
   card: Flashcard,
   instruction: string,
-  topic: Topic
+  topic: Topic,
+  apiKey: string
 ): Promise<Flashcard> => {
-  const ai = getAiClient();
+  const ai = getAiClient(apiKey);
 
   const prompt = `
     Current Card JSON:

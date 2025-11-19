@@ -46,6 +46,7 @@ const App: React.FC = () => {
   // Connection Settings
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [customUrl, setCustomUrlState] = useState<string>('http://127.0.0.1:8765');
+  const [geminiApiKey, setGeminiApiKeyState] = useState<string>(() => localStorage.getItem('geminiApiKey') || '');
   const [isCheckingConnection, setIsCheckingConnection] = useState<boolean>(false);
 
   // Card Management
@@ -71,6 +72,11 @@ const App: React.FC = () => {
       document.documentElement.classList.remove('dark');
     }
   }, [darkMode]);
+
+  const setGeminiApiKey = (key: string) => {
+    setGeminiApiKeyState(key);
+    localStorage.setItem('geminiApiKey', key);
+  };
   
   // Initial silent check
   const initialCheck = useCallback(async () => {
@@ -138,7 +144,7 @@ const App: React.FC = () => {
     }
 
     try {
-      const cards = await generateFlashcards(notes, selectedTopic, selectedImage, useThinking);
+      const cards = await generateFlashcards(notes, selectedTopic, geminiApiKey, selectedImage, useThinking);
       
       if (cards.length === 0) {
         setError("AI returned no cards. Try adding more detail to your notes.");
@@ -176,7 +182,7 @@ const App: React.FC = () => {
     setIsAmending(true);
     try {
       const currentCard = generatedCards[currentCardIndex];
-      const newCard = await amendFlashcard(currentCard, amendInstruction, selectedTopic);
+      const newCard = await amendFlashcard(currentCard, amendInstruction, selectedTopic, geminiApiKey);
       
       const updated = [...generatedCards];
       updated[currentCardIndex] = newCard;
@@ -249,6 +255,8 @@ const App: React.FC = () => {
         onClose={() => setShowSettings(false)}
         customUrl={customUrl}
         setCustomUrl={setCustomUrlState}
+        geminiApiKey={geminiApiKey}
+        setGeminiApiKey={setGeminiApiKey}
         isChecking={isCheckingConnection}
         onSave={handleUrlUpdate}
       />
