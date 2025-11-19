@@ -1,0 +1,8 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom scrollbar override for electron */
+body {
+  overflow-y: overlay;
+}
