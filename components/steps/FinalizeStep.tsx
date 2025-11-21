@@ -37,7 +37,7 @@ export const FinalizeStep: React.FC<FinalizeStepProps> = ({
               <div className="flex-grow grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <span className="text-xs uppercase text-slate-400 dark:text-slate-500 font-bold">Front</span>
-                  <div className="text-sm text-slate-800 dark:text-slate-200 line-clamp-2" dangerouslySetInnerHTML={{ __html: card.cardType === CardType.Cloze ? (card.cloze || '') : card.front }} />
+                  <div className="text-sm text-slate-800 dark:text-slate-200 line-clamp-2" dangerouslySetInnerHTML={{ __html: card.front }} />
                 </div>
                 <div>
                   <span className="text-xs uppercase text-slate-400 dark:text-slate-500 font-bold">Back</span>

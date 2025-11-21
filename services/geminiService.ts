@@ -1,9 +1,31 @@
 import { GoogleGenAI } from '@google/genai';
-import { Flashcard, Topic } from '../types';
+import { CardType, Flashcard, Topic } from '../types';
 import { flashcardResponseSchema, singleFlashcardSchema } from '../models/schemas';
 import { SYSTEM_INSTRUCTION } from '../prompts/system';
 import { AMEND_SYSTEM_INSTRUCTION } from '../prompts/amend';
 import { TOPIC_PROMPTS } from '../prompts/topics';
+
+const normalizeCardType = (aiCardType: string): CardType => {
+  // First, check for exact matches, which is the ideal case.
+  if (aiCardType === CardType.BasicTyping) {
+    return CardType.BasicTyping;
+  }
+  if (aiCardType === CardType.Basic) {
+    return CardType.Basic;
+  }
+
+  // If no exact match, log a warning and try to infer the correct type.
+  // This makes the system more robust to minor AI deviations.
+  console.warn(`Unexpected card type from AI: "${aiCardType}". Defaulting to an inferred type.`);
+  
+  const lowerCaseType = aiCardType.toLowerCase();
+  if (lowerCaseType.includes('type in') || lowerCaseType.includes('typing')) {
+    return CardType.BasicTyping;
+  }
+  
+  // Default to Basic for any other case (e.g., "Basic (and reversed card)")
+  return CardType.Basic;
+};
 
 // Helper to get the client
 const getAiClient = (apiKey: string) => {
@@ -75,10 +97,11 @@ export const generateFlashcards = async (
 
     if (response.text) {
       const rawData = JSON.parse(response.text);
-      // Add IDs to the generated cards
+      // Add IDs and normalize the card type
       return rawData.map((card: any) => ({
         ...card,
         id: crypto.randomUUID(),
+        cardType: normalizeCardType(card.cardType),
       }));
     }
     return [];
@@ -121,10 +144,11 @@ export const amendFlashcard = async (
 
     if (response.text) {
       const modifiedCard = JSON.parse(response.text);
-      // Preserve the original ID
+      // Preserve the original ID and normalize the type
       return {
         ...modifiedCard,
         id: card.id,
+        cardType: normalizeCardType(modifiedCard.cardType),
       };
     }
     throw new Error("No response text from AI for amendment");

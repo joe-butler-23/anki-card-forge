@@ -11,10 +11,8 @@ export const CardPreview: React.FC<CardPreviewProps> = ({ card, isEditing, onUpd
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Logic to determine what to show based on card type
-  const frontContent = card.cardType === CardType.Cloze ? (card.cloze || card.front) : card.front;
-  const backContent = card.cardType === CardType.Cloze 
-    ? (card.back ? `<div class="mb-2 text-xs text-slate-400 dark:text-slate-500">Extra Info:</div>${card.back}` : card.cloze || card.front) 
-    : card.back;
+  const frontContent = card.front;
+  const backContent = card.back;
 
   // Effect to trigger MathJax typesetting when card content changes or when switching out of edit mode
   useEffect(() => {
@@ -40,7 +38,7 @@ export const CardPreview: React.FC<CardPreviewProps> = ({ card, isEditing, onUpd
         clearTimeout(timer2);
       };
     }
-  }, [card.front, card.back, card.cloze, isEditing]); 
+  }, [card.front, card.back, isEditing]); 
   
   const renderContent = (
     isFront: boolean,
@@ -60,14 +58,10 @@ export const CardPreview: React.FC<CardPreviewProps> = ({ card, isEditing, onUpd
       
       {isEditing ? (
         <textarea
-          value={card.cardType === CardType.Cloze && isFront ? (card.cloze || '') : (isFront ? card.front : card.back)}
+          value={isFront ? card.front : card.back}
           onChange={(e) => {
              const val = e.target.value;
-             if (card.cardType === CardType.Cloze && isFront) {
-                 onUpdate('cloze', val);
-             } else {
-                 onUpdate(editField, val);
-             }
+             onUpdate(editField, val);
           }}
           className="w-full h-full bg-transparent resize-none outline-none text-sm sm:text-base font-mono text-slate-800 dark:text-slate-200 placeholder-slate-400"
           placeholder={`Enter ${label.toLowerCase()}...`}

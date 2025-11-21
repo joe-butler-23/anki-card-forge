@@ -9,8 +9,7 @@ export enum AppStep {
 
 export enum CardType {
   Basic = 'Basic',
-  BasicReversed = 'Basic (and reversed card)',
-  Cloze = 'Cloze',
+  BasicTyping = 'Basic (type in the answer)',
 }
 
 export interface Flashcard {
@@ -18,7 +17,6 @@ export interface Flashcard {
   cardType: CardType;
   front: string;
   back: string;
-  cloze?: string; // The full text with {{c1::hidden}} for Cloze cards
   isDeleted?: boolean;
 }
 
