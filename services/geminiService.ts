@@ -15,15 +15,18 @@ const normalizeCardType = (aiCardType: string): CardType => {
   }
 
   // If no exact match, log a warning and try to infer the correct type.
-  // This makes the system more robust to minor AI deviations.
-  console.warn(`Unexpected card type from AI: "${aiCardType}". Defaulting to an inferred type.`);
+  console.warn(`Unexpected card type from AI: "${aiCardType}".`);
   
   const lowerCaseType = aiCardType.toLowerCase();
-  if (lowerCaseType.includes('type in') || lowerCaseType.includes('typing')) {
+  if (lowerCaseType.includes('type') || lowerCaseType.includes('typing')) {
+    return CardType.BasicTyping;
+  }
+
+  if (lowerCaseType.includes('reverse') || lowerCaseType.includes('reversed')) {
     return CardType.BasicTyping;
   }
   
-  // Default to Basic for any other case (e.g., "Basic (and reversed card)")
+  // Default to Basic for any other case
   return CardType.Basic;
 };
 
