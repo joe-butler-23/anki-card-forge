@@ -47,7 +47,6 @@ const App: React.FC = () => {
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [customUrl, setCustomUrlState] = useState<string>('http://127.0.0.1:8765');
   const [geminiApiKey, setGeminiApiKeyState] = useState<string>(() => localStorage.getItem('geminiApiKey') || '');
-  const [geminiModel, setGeminiModelState] = useState<string>(() => localStorage.getItem('geminiModel') || 'gemini-pro');
   const [isCheckingConnection, setIsCheckingConnection] = useState<boolean>(false);
 
   // Card Management
@@ -77,11 +76,6 @@ const App: React.FC = () => {
   const setGeminiApiKey = (key: string) => {
     setGeminiApiKeyState(key);
     localStorage.setItem('geminiApiKey', key);
-  };
-
-  const setGeminiModel = (model: string) => {
-    setGeminiModelState(model);
-localStorage.setItem('geminiModel', model);
   };
   
   // Initial silent check
@@ -150,7 +144,7 @@ localStorage.setItem('geminiModel', model);
     }
 
     try {
-      const cards = await generateFlashcards(notes, selectedTopic, geminiApiKey, geminiModel, selectedImage, useThinking);
+      const cards = await generateFlashcards(notes, selectedTopic, geminiApiKey, 'gemini-3-pro-preview', selectedImage, useThinking);
       
       if (cards.length === 0) {
         setError("AI returned no cards. Try adding more detail to your notes.");
@@ -188,7 +182,7 @@ localStorage.setItem('geminiModel', model);
     setIsAmending(true);
     try {
       const currentCard = generatedCards[currentCardIndex];
-      const newCard = await amendFlashcard(currentCard, amendInstruction, selectedTopic, geminiApiKey, geminiModel);
+      const newCard = await amendFlashcard(currentCard, amendInstruction, selectedTopic, geminiApiKey, 'gemini-3-pro-preview');
       
       const updated = [...generatedCards];
       updated[currentCardIndex] = newCard;
@@ -263,8 +257,6 @@ localStorage.setItem('geminiModel', model);
         setCustomUrl={setCustomUrlState}
         geminiApiKey={geminiApiKey}
         setGeminiApiKey={setGeminiApiKey}
-        geminiModel={geminiModel}
-        setGeminiModel={setGeminiModel}
         isChecking={isCheckingConnection}
         onSave={handleUrlUpdate}
       />
