@@ -96,10 +96,9 @@
             npm run build
             
             mkdir -p $out/share/anki-card-forge
-            cp package.json $out/share/anki-card-forge/
-            cp -r electron $out/share/anki-card-forge/
-            cp -r prompts $out/share/anki-card-forge/
-            cp -r dist $out/share/anki-card-forge/
+            
+            # Copy all necessary files and directories
+            cp -r package.json electron prompts dist App.tsx constants.ts types.ts index.html vite.config.ts tailwind.config.js postcss.config.js tsconfig.json components models services $out/share/anki-card-forge/
             
             mkdir -p $out/bin
             makeWrapper ${pkgs.electron}/bin/electron $out/bin/anki-card-forge \
