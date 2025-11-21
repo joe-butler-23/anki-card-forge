@@ -9,8 +9,6 @@ interface SettingsModalProps {
   setCustomUrl: (url: string) => void;
   geminiApiKey: string;
   setGeminiApiKey: (key: string) => void;
-  geminiModel: string;
-  setGeminiModel: (model: string) => void;
   isChecking: boolean;
   onSave: () => void;
 }
@@ -22,8 +20,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   setCustomUrl,
   geminiApiKey,
   setGeminiApiKey,
-  geminiModel,
-  setGeminiModel,
   isChecking,
   onSave
 }) => {
@@ -53,18 +49,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 onChange={(e) => setGeminiApiKey(e.target.value)}
                 className="flex-grow px-3 py-2.5 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                 placeholder="Enter your Gemini API Key"
-              />
-            </div>
-          </div>
-          <div>
-            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block">Gemini Model</label>
-            <div className="flex gap-2">
-              <input 
-                type="text" 
-                value={geminiModel}
-                onChange={(e) => setGeminiModel(e.target.value)}
-                className="flex-grow px-3 py-2.5 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                placeholder="e.g. gemini-pro"
               />
             </div>
           </div>
