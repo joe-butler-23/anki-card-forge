@@ -116,7 +116,6 @@ export const addNotesToAnki = async (cards: Flashcard[], deckName: string): Prom
         deckName,
         modelName,
         fields,
-        tags: ['anki-card-forge'],
         options: {
           allowDuplicate: false,
         }
