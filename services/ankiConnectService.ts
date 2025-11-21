@@ -106,14 +106,10 @@ export const addNotesToAnki = async (cards: Flashcard[], deckName: string): Prom
         modelName = 'Basic';
         fields['Front'] = card.front;
         fields['Back'] = card.back;
-      } else if (card.cardType === CardType.BasicReversed) {
-        modelName = 'Basic (and reversed card)';
+      } else if (card.cardType === CardType.BasicTyping) {
+        modelName = 'Basic (type in the answer)';
         fields['Front'] = card.front;
         fields['Back'] = card.back;
-      } else if (card.cardType === CardType.Cloze) {
-        modelName = 'Cloze';
-        fields['Text'] = card.cloze || card.front; // Fallback if cloze field missing
-        fields['Back Extra'] = ""; // Optional back extra
       }
 
       return {
