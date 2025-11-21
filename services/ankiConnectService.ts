@@ -95,9 +95,11 @@ export const pingAnki = async (): Promise<void> => {
 };
 
 export const addNotesToAnki = async (cards: Flashcard[], deckName: string): Promise<number[]> => {
+  console.log('[Debug] Preparing to add notes to Anki. Processing cards...');
   const notes = cards
     .filter(c => !c.isDeleted)
     .map(card => {
+      console.log(`[Debug] Processing card. Internal type: "${card.cardType}"`);
       // Map internal types to AnkiConnect types
       let modelName = 'Basic';
       const fields: Record<string, string> = {};
@@ -111,6 +113,8 @@ export const addNotesToAnki = async (cards: Flashcard[], deckName: string): Prom
         fields['Front'] = card.front;
         fields['Back'] = card.back;
       }
+      
+      console.log(`[Debug] Mapped to Anki modelName: "${modelName}"`);
 
       return {
         deckName,
@@ -122,6 +126,11 @@ export const addNotesToAnki = async (cards: Flashcard[], deckName: string): Prom
       };
     });
 
-  if (notes.length === 0) return [];
+  if (notes.length === 0) {
+    console.log('[Debug] No valid notes to add.');
+    return [];
+  }
+  
+  console.log('[Debug] Sending final notes payload to AnkiConnect:', notes);
   return invokeAnki<number[]>('addNotes', { notes });
 };

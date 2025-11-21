@@ -6,27 +6,34 @@ import { AMEND_SYSTEM_INSTRUCTION } from '../prompts/amend';
 import { TOPIC_PROMPTS } from '../prompts/topics';
 
 const normalizeCardType = (aiCardType: string): CardType => {
+  console.log(`[Debug] Normalizing card type. Raw AI value: "${aiCardType}"`);
+
   // First, check for exact matches, which is the ideal case.
   if (aiCardType === CardType.BasicTyping) {
+    console.log('[Debug] Normalized to: BasicTyping (exact match)');
     return CardType.BasicTyping;
   }
   if (aiCardType === CardType.Basic) {
+    console.log('[Debug] Normalized to: Basic (exact match)');
     return CardType.Basic;
   }
 
   // If no exact match, log a warning and try to infer the correct type.
-  console.warn(`Unexpected card type from AI: "${aiCardType}".`);
+  console.warn(`Unexpected card type from AI: "${aiCardType}". Attempting to infer correct type.`);
   
   const lowerCaseType = aiCardType.toLowerCase();
   if (lowerCaseType.includes('type') || lowerCaseType.includes('typing')) {
+    console.log('[Debug] Inferred type: BasicTyping');
     return CardType.BasicTyping;
   }
 
   if (lowerCaseType.includes('reverse') || lowerCaseType.includes('reversed')) {
+    console.log('[Debug] Inferred type: BasicTyping (from reverse)');
     return CardType.BasicTyping;
   }
   
   // Default to Basic for any other case
+  console.log('[Debug] Defaulting to type: Basic');
   return CardType.Basic;
 };
 
@@ -75,6 +82,8 @@ export const generateFlashcards = async (
     ${notes}
   `;
 
+  console.log('[Debug] Sending the following prompt to the AI:', fullPromptText);
+
   // Construct contents (Text only or Multimodal)
   let contents: any;
 
@@ -100,12 +109,17 @@ export const generateFlashcards = async (
 
     if (response.text) {
       const rawData = JSON.parse(response.text);
+      console.log('[Debug] Raw data received from AI:', rawData);
+
       // Add IDs and normalize the card type
-      return rawData.map((card: any) => ({
-        ...card,
-        id: crypto.randomUUID(),
-        cardType: normalizeCardType(card.cardType),
-      }));
+      return rawData.map((card: any) => {
+        console.log(`[Debug] Raw cardType from AI for a card: "${card.cardType}"`);
+        return {
+          ...card,
+          id: crypto.randomUUID(),
+          cardType: normalizeCardType(card.cardType),
+        };
+      });
     }
     return [];
   } catch (error) {
