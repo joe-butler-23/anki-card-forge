@@ -77,35 +77,38 @@
           version = "1.0.0";
           src = ./.;
 
-          # This is required for buildNpmPackage. 
-          # On the first run, set this to lib.fakeHash, run the build, 
-          # and copy the actual hash from the error message.
           npmDepsHash = "sha256-AqpLoEb8WSSsbTgxFyUtXu7R3nOvO9L2eEWsqSwEu88=";
 
-          # Libraries required for the build process
           nativeBuildInputs = [ pkgs.pkg-config pkgs.makeWrapper ];
-          buildInputs = [ pkgs.vips ]; # Common image processing dep for Vite apps
+          buildInputs = [ pkgs.vips ];
 
-          # Environment variables for the build
           env = {
             ELECTRON_SKIP_BINARY_DOWNLOAD = 1;
           };
 
           installPhase = ''
             runHook preInstall
+            # This runs 'tsc && vite build'
             npm run build
-            
+
+            # Create the directory structure in the output path
             mkdir -p $out/share/anki-card-forge
-            
-            # Copy all necessary files and directories
-            cp -r package.json electron prompts dist App.tsx constants.ts types.ts index.html vite.config.ts tailwind.config.js postcss.config.js tsconfig.json components models services $out/share/anki-card-forge/
-            
+
+            # Copy only the necessary production files:
+            # - package.json: Needed by Electron to find the main script.
+            # - electron/: Contains the Electron main process entrypoint.
+            # - dist/: Contains the compiled frontend assets.
+            # - prompts/: Contains default prompts for first run.
+            cp package.json $out/share/anki-card-forge/
+            cp -r electron dist prompts $out/share/anki-card-forge/
+
+            # Create the binary wrapper
             mkdir -p $out/bin
             makeWrapper ${pkgs.electron}/bin/electron $out/bin/anki-card-forge \
               --add-flags "$out/share/anki-card-forge" \
               --prefix LD_LIBRARY_PATH : "${lib.makeLibraryPath runtimeLibs}" \
               --set-default VITE_API_KEY "${apiKey}"
-            
+
             runHook postInstall
           '';
         };
