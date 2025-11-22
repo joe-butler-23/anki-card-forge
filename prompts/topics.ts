@@ -2,11 +2,23 @@ import { Topic } from '../types';
 
 // Topic prompt content as strings (moved from markdown files for browser compatibility)
 const TOPIC_PROMPT_CONTENT = {
+
   general: `Create concise cards. Break down complex lists into multiple cards.`,
+
   mathScience: `Enforce MathJax syntax.
 - Inline math: \\( ... \\)
 - Display math: \\[ ... \\] or $$ ... $$
-Ensure variables are clearly defined.`,
+Ensure variables are clearly defined.
+
+When the question on the front pertains to a general formula, e.g. how do you calculate a percentage increase, then you should include a specific example to help make the concept more concrete for the user. For example: Front: How do you calculate a percentage increase, e.g £30 is x % of £150? Back: \[
+\frac{\text{Part}}{\text{Whole}} \times 100\% = \text{Percent}
+\]
+ , e.g.  \[
+\frac{30}{150} \times 100\% = 20\%
+\]
+
+`,
+
   vocabulary: `You assist students with their study of vocabulary for the GRE. 
 
 ## Flashcard Structure
