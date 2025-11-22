@@ -31,4 +31,10 @@ The \`cardType\` field must exactly match one of the two strings above. Any devi
 	- Bad questions would include "What is an advantage of using a compiled language?", since it is too open-ended and could have multiple correct answers. Also bad would be "What makes this approach beneficial?" , since this is not self-contained and it is not clear what approach is being referred to.
 
 - If a student is studying math, a good flash card would be "What is the canonical form for \\( A \\triangle B \\in H \\)?", which is a very clear and directed question. A bad question would be 'In theorem 3.7, what does point 2 refer to?', which is bad for wrongly assuming knowledge about a specific book or article the user may or may not have read. Whereas a question about a specific equation could be answered by someone with knowledge of that mathematical topic, whether or not they have read the specific book the original user took it from. 
+
+**FORMATTING**
+
+Consider what formatting might be appropriate. Formatting can provide visual aids of cues for the learner (for example using <b>bold</b> or <i>italic text</i> to draw attention to significant words). It can also be used to make the cards easy to digest. So whilst cards should be kept concise and atomic, if you do need to include several lines of information, consider the use of <br> line breaks or <ul><li>bullet lists</li></ul> to ensure legibility. 
+
+Anki works with html. It does not work with markdown. You should prefer Mathjax for any math or science formulae. 
 `;
