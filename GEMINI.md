@@ -96,16 +96,55 @@ For reproducible builds and to avoid "dirty tree" warnings from Nix, it is best 
     ```
 
 ### Step 4: Build and Install the New Version
-Once you are satisfied with your changes, you can build and install the new version of the application for system-wide use.
 
-1.  **Build and install**:
-    ```bash
-    nix profile install '.#'    ```
-This single command will build the application (if necessary) and update your system-wide installation (e.g., desktop shortcuts) to use the new version. You do not need to run `nix build` separately if your goal is to install.
+Once you are satisfied with your changes and have committed them, you can build and install the new version of the application declaratively.
 
-Sometimes you need to run nix profile upgrade anki-forge-app if it is saying app already installed
+**Declarative Installation (Recommended):**
 
-**Note on API Keys**: The build process defined in `flake.nix` will attempt to embed an API key from a `.env.local` file into the final executable. For the build to be fully functional, ensure this file exists before running `nix build`.
+For a system-wide, declarative installation, you should incorporate the `anki-forge-app` flake into your NixOS `configuration.nix` or Home Manager `home.nix` file.
+
+*   **For NixOS (e.g., in `configuration.nix`):**
+    ```nix
+    { config, pkgs, ... }:
+
+    {
+      nix.settings.experimental-features = [ "nix-command" "flakes" ];
+
+      inputs.anki-forge-app.url = "github:your-github-user/anki-forge-app"; # or your local path
+      # inputs.anki-forge-app.url = "/path/to/your/anki-forge-app"; # For local development
+
+      environment.systemPackages = with pkgs; [
+        inputs.anki-forge-app.packages.${pkgs.system}.default
+      ];
+    }
+    ```
+    Then, rebuild your system: `sudo nixos-rebuild switch`
+
+*   **For Home Manager (e.g., in `home.nix`):**
+    ```nix
+    { config, pkgs, ... }:
+
+    {
+      nix.settings.experimental-features = [ "nix-command" "flakes" ];
+
+      inputs.anki-forge-app.url = "github:your-github-user/anki-forge-app"; # or your local path
+      # inputs.anki-forge-app.url = "/path/to/your/anki-forge-app"; # For local development
+
+      home.packages = with pkgs; [
+        inputs.anki-forge-app.packages.${pkgs.system}.default
+      ];
+    }
+    ```
+    Then, switch your Home Manager configuration: `home-manager switch`
+
+**Local Build for Testing:**
+
+To simply build the application and test the resulting artifact without affecting your system-wide installation:
+
+```bash
+nix build
+```
+This command compiles the application and places the output in a local `result` symlink (e.g., `./result/bin/anki-card-forge`). You can run it directly from there.
 
 ## Core Logic for Card Generation
 
