@@ -323,7 +323,7 @@ const App: React.FC = () => {
         )}
 
         {step === AppStep.Reviewing && (
-          <ReviewStep 
+          <ReviewStep
             card={generatedCards[currentCardIndex]}
             totalCards={generatedCards.length}
             currentIndex={currentCardIndex}
@@ -331,6 +331,7 @@ const App: React.FC = () => {
             setIsEditing={setIsEditing}
             onManualUpdate={handleManualEdit}
             onAction={handleCardAction}
+            onNavigate={setCurrentCardIndex}
             amendInstruction={amendInstruction}
             setAmendInstruction={setAmendInstruction}
             onAmend={handleAmend}
