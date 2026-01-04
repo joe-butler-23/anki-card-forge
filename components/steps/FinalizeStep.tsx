@@ -1,5 +1,6 @@
 
 import React from 'react';
+import DOMPurify from 'dompurify';
 import { Download, Send, Settings } from 'lucide-react';
 import { Flashcard, CardType } from '../../types';
 
@@ -21,6 +22,28 @@ export const FinalizeStep: React.FC<FinalizeStepProps> = ({
   onConnect
 }) => {
   const validCards = cards.filter(c => !c.isDeleted);
+  const sanitizeContent = (html: string) =>
+    DOMPurify.sanitize(html, {
+      ALLOWED_TAGS: [
+        'b',
+        'i',
+        'em',
+        'strong',
+        'code',
+        'pre',
+        'sup',
+        'sub',
+        'br',
+        'hr',
+        'p',
+        'div',
+        'span',
+        'ul',
+        'ol',
+        'li'
+      ],
+      ALLOWED_ATTR: []
+    });
 
   return (
     <div className="max-w-3xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4">
@@ -37,11 +60,17 @@ export const FinalizeStep: React.FC<FinalizeStepProps> = ({
               <div className="flex-grow grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <span className="text-xs uppercase text-slate-400 dark:text-slate-500 font-bold">Front</span>
-                  <div className="text-sm text-slate-800 dark:text-slate-200 line-clamp-2" dangerouslySetInnerHTML={{ __html: card.front }} />
+                  <div
+                    className="text-sm text-slate-800 dark:text-slate-200 line-clamp-2"
+                    dangerouslySetInnerHTML={{ __html: sanitizeContent(card.front) }}
+                  />
                 </div>
                 <div>
                   <span className="text-xs uppercase text-slate-400 dark:text-slate-500 font-bold">Back</span>
-                  <div className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2" dangerouslySetInnerHTML={{ __html: card.back }} />
+                  <div
+                    className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2"
+                    dangerouslySetInnerHTML={{ __html: sanitizeContent(card.back) }}
+                  />
                 </div>
               </div>
             </div>

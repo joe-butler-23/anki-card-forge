@@ -59,7 +59,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 type="text" 
                 value={customUrl}
                 onChange={(e) => setCustomUrl(e.target.value)}
-                className="flex-grow px-3 py-2.5 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 dark:text-white rounded-lg text.sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                className="flex-grow px-3 py-2.5 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                 placeholder="http://127.0.0.1:8765"
               />
             </div>

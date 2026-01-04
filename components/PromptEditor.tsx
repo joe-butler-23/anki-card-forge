@@ -7,9 +7,10 @@ declare global {
   interface Window {
     electronAPI?: {
       loadPromptBackups: (topic: Topic) => Promise<Array<{ timestamp: string; content: string }>>;
-      savePrompt: (topic: Topic, content: string) => Promise<void>;
-      createPromptBackup: (topic: Topic, content: string) => Promise<void>;
+      savePrompt: (topic: Topic, content: string) => Promise<boolean>;
+      refreshPromptOverrides: () => Promise<Record<string, string>>;
     };
+    customPromptOverrides?: Record<string, string>;
   }
 }
 
@@ -18,7 +19,7 @@ interface PromptEditorProps {
   onClose: () => void;
   topic: Topic;
   currentPrompt: string;
-  onSave: (topic: Topic, newPrompt: string) => void;
+  onSave: (topic: Topic, newPrompt: string) => Promise<boolean>;
 }
 
 interface BackupVersion {
@@ -58,10 +59,15 @@ export const PromptEditor: React.FC<PromptEditorProps> = ({
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      await onSave(topic, prompt);
-      onClose();
+      const saved = await onSave(topic, prompt);
+      if (saved) {
+        onClose();
+      } else {
+        alert('Unable to save prompt. Please try again.');
+      }
     } catch (error) {
       console.error('Failed to save prompt:', error);
+      alert('Unable to save prompt. Please try again.');
     } finally {
       setIsSaving(false);
     }

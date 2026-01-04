@@ -74,19 +74,19 @@ export const SetupStep: React.FC<SetupStepProps> = ({
   const handleSavePrompt = async (topic: Topic, newPrompt: string) => {
     try {
       if (window.electronAPI) {
-        await window.electronAPI.savePrompt(topic, newPrompt);
-        // Reload the prompts to get updated content
-        window.location.reload();
+        const success = await window.electronAPI.savePrompt(topic, newPrompt);
+        if (!success) throw new Error('Prompt persistence failed');
       } else {
-        // Fallback for browser - use localStorage
         localStorage.setItem(`prompt_${topic}`, newPrompt);
-        // Update the TOPIC_PROMPTS object in memory
-        (TOPIC_PROMPTS as any)[topic] = newPrompt;
-        alert('Prompt saved successfully (browser mode)');
       }
+      (TOPIC_PROMPTS as any)[topic] = newPrompt;
+      setEditingPrompt(newPrompt);
+      alert('Prompt saved successfully');
+      return true;
     } catch (error) {
       console.error('Failed to save prompt:', error);
       alert('Failed to save prompt. Please try again.');
+      return false;
     }
   };
 
@@ -194,8 +194,8 @@ export const SetupStep: React.FC<SetupStepProps> = ({
               <div className="flex gap-2">
                 <button
                   onClick={async () => {
-                    await handleSavePrompt(selectedTopic, editingPrompt);
-                    setIsPromptEditorOpen(false);
+                    const saved = await handleSavePrompt(selectedTopic, editingPrompt);
+                    if (saved) setIsPromptEditorOpen(false);
                   }}
                   className="flex items-center gap-1 text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg transition-colors"
                 >
