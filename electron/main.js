@@ -4,25 +4,120 @@ import { fileURLToPath } from 'url';
 import fs from 'fs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const promptsJsonPath = path.join(__dirname, '../prompts/topics.json');
+const userDataPath = app.getPath('userData');
+const promptsDir = path.join(userDataPath, 'prompts');
+const customPromptsPath = path.join(promptsDir, 'prompts.json');
+const backupsPath = path.join(promptsDir, 'backups');
 
-function createWindow() {
+const normalizeTopicKey = (topic) => {
+  if (!topic) return 'general';
+  return topic.toLowerCase().replace(/[^a-z]/g, '');
+};
+
+const loadDefaultPrompts = () => {
+  if (!fs.existsSync(promptsJsonPath)) return {};
+  try {
+    return JSON.parse(fs.readFileSync(promptsJsonPath, 'utf8'));
+  } catch (error) {
+    console.error('Unable to read default prompts:', error);
+    return {};
+  }
+};
+
+const defaultPrompts = loadDefaultPrompts();
+
+const ensureStorage = () => {
+  if (!fs.existsSync(promptsDir)) {
+    fs.mkdirSync(promptsDir, { recursive: true });
+  }
+  if (!fs.existsSync(customPromptsPath)) {
+    fs.writeFileSync(customPromptsPath, JSON.stringify({}, null, 2));
+  }
+  if (!fs.existsSync(backupsPath)) {
+    fs.mkdirSync(backupsPath, { recursive: true });
+  }
+};
+
+const readCustomPrompts = () => {
+  ensureStorage();
+  try {
+    const raw = fs.readFileSync(customPromptsPath, 'utf8');
+    return JSON.parse(raw);
+  } catch (error) {
+    console.error('Failed to read custom prompts:', error);
+    return {};
+  }
+};
+
+const writeCustomPrompts = (data) => {
+  ensureStorage();
+  fs.writeFileSync(customPromptsPath, JSON.stringify(data, null, 2));
+};
+
+const getTopicBackupDir = (topic) => {
+  const dir = path.join(backupsPath, normalizeTopicKey(topic));
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  return dir;
+};
+
+const cleanupOldBackups = (dir) => {
+  const files = fs.readdirSync(dir)
+    .filter(file => file.endsWith('.json'))
+    .sort((a, b) => {
+      const aTime = parseInt(a.split('-')[1]) || 0;
+      const bTime = parseInt(b.split('-')[1]) || 0;
+      return bTime - aTime;
+    });
+  const toRemove = files.slice(10);
+  toRemove.forEach(file => {
+    fs.unlinkSync(path.join(dir, file));
+  });
+};
+
+const createPromptBackup = (topic, content) => {
+  const dir = getTopicBackupDir(topic);
+  const timestamp = Date.now();
+  fs.writeFileSync(
+    path.join(dir, `backup-${timestamp}.json`),
+    JSON.stringify({ timestamp: new Date().toISOString(), content }, null, 2)
+  );
+  cleanupOldBackups(dir);
+};
+
+const loadBackupsForTopic = (topic) => {
+  const dir = getTopicBackupDir(topic);
+  const files = fs.readdirSync(dir)
+    .filter(file => file.endsWith('.json'))
+    .sort((a, b) => {
+      const aTime = parseInt(a.split('-')[1]) || 0;
+      const bTime = parseInt(b.split('-')[1]) || 0;
+      return bTime - aTime;
+    });
+  return files.map(file => {
+    const content = fs.readFileSync(path.join(dir, file), 'utf8');
+    return JSON.parse(content);
+  });
+};
+
+const createWindow = () => {
   const win = new BrowserWindow({
     width: 1280,
     height: 900,
-    title: "Anki Card Forge",
-    autoHideMenuBar: true, // Hide the menu bar
+    title: 'Anki Card Forge',
+    autoHideMenuBar: true,
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
-      webSecurity: false // Allow local CORS for AnkiConnect if needed
+      preload: path.join(__dirname, 'preload.js'),
+      nodeIntegration: false,
+      contextIsolation: true,
+      webSecurity: true
     }
   });
 
-  // Hide the menu bar completely
   Menu.setApplicationMenu(null);
 
-  // Determine if we are in dev mode
-  // Using env var is more reliable than isPackaged when running via nix wrapper
   const isDev = process.env.NODE_ENV === 'development';
 
   if (isDev) {
@@ -31,15 +126,15 @@ function createWindow() {
   } else {
     const distPath = path.join(__dirname, '../dist/index.html');
     if (fs.existsSync(distPath)) {
-       win.loadFile(distPath);
+      win.loadFile(distPath);
     } else {
-       console.error("Could not find dist/index.html at", distPath);
-       // Fallback or error handling
+      console.error('Could not find dist/index.html at', distPath);
     }
   }
-}
+};
 
 app.whenReady().then(() => {
+  ensureStorage();
   createWindow();
 
   app.on('activate', () => {
@@ -49,116 +144,23 @@ app.whenReady().then(() => {
   });
 });
 
-// Prompt editing functionality 
-// Use user data directory for writable files
-const userDataPath = app.getPath('userData');
-const promptsPath = path.join(userDataPath, 'topics.ts');
-const backupsPath = path.join(userDataPath, 'backups');
-
-// Initialize prompts file if it doesn't exist in userData
-if (!fs.existsSync(promptsPath)) {
-  // Try to copy from installation directory (read-only source)
-  const sourcePromptsPath = path.join(__dirname, '../prompts/topics.ts');
-  if (fs.existsSync(sourcePromptsPath)) {
-    try {
-      fs.mkdirSync(path.dirname(promptsPath), { recursive: true });
-      fs.copyFileSync(sourcePromptsPath, promptsPath);
-    } catch (err) {
-      console.error("Failed to copy default prompts:", err);
-    }
-  }
-}
-
-// Ensure backups directory exists
-if (!fs.existsSync(backupsPath)) {
-  fs.mkdirSync(backupsPath, { recursive: true });
-}
-
-// Load prompt backups
 ipcMain.handle('load-prompt-backups', async (event, topic) => {
   try {
-    const topicBackupsPath = path.join(backupsPath, `${topic.toLowerCase()}`);
-    if (!fs.existsSync(topicBackupsPath)) {
-      return [];
-    }
-    
-    const files = fs.readdirSync(topicBackupsPath)
-      .filter(file => file.endsWith('.json'))
-      .sort((a, b) => {
-        const aTime = parseInt(a.split('-')[1]);
-        const bTime = parseInt(b.split('-')[1]);
-        return bTime - aTime; // Most recent first
-      });
-    
-    const backups = files.slice(0, 10).map(file => {
-      const filePath = path.join(topicBackupsPath, file);
-      const content = fs.readFileSync(filePath, 'utf8');
-      return JSON.parse(content);
-    });
-    
-    return backups;
+    return loadBackupsForTopic(topic);
   } catch (error) {
     console.error('Failed to load backups:', error);
     return [];
   }
 });
 
-// Create backup before saving
-ipcMain.handle('create-prompt-backup', async (event, topic, content) => {
-  try {
-    const topicBackupsPath = path.join(backupsPath, `${topic.toLowerCase()}`);
-    if (!fs.existsSync(topicBackupsPath)) {
-      fs.mkdirSync(topicBackupsPath, { recursive: true });
-    }
-    
-    const timestamp = Date.now();
-    const backupFile = path.join(topicBackupsPath, `backup-${timestamp}.json`);
-    const backup = {
-      timestamp: new Date().toISOString(),
-      content: content
-    };
-    
-    fs.writeFileSync(backupFile, JSON.stringify(backup, null, 2));
-    
-    // Clean up old backups (keep only last 10)
-    const files = fs.readdirSync(topicBackupsPath)
-      .filter(file => file.endsWith('.json'))
-      .sort((a, b) => {
-        const aTime = parseInt(a.split('-')[1]);
-        const bTime = parseInt(b.split('-')[1]);
-        return bTime - aTime;
-      });
-    
-    if (files.length > 10) {
-      const filesToDelete = files.slice(10);
-      filesToDelete.forEach(file => {
-        fs.unlinkSync(path.join(topicBackupsPath, file));
-      });
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('Failed to create backup:', error);
-    return false;
-  }
-});
-
-// Save prompt
 ipcMain.handle('save-prompt', async (event, topic, newContent) => {
   try {
-    // Read current file
-    const currentContent = fs.readFileSync(promptsPath, 'utf8');
-    
-    // Create backup first
-    await ipcMain.emit('create-prompt-backup', event, topic, getCurrentPromptForTopic(currentContent, topic));
-    
-    // Update the specific topic prompt
-    const topicKey = topic.toLowerCase().replace(/[^a-z]/g, '');
-    const updatedContent = updatePromptInFile(currentContent, topicKey, newContent);
-    
-    // Write back to file
-    fs.writeFileSync(promptsPath, updatedContent);
-    
+    const normalized = normalizeTopicKey(topic);
+    const prompts = readCustomPrompts();
+    const previous = prompts[normalized] ?? defaultPrompts[normalized] ?? '';
+    createPromptBackup(topic, previous);
+    prompts[normalized] = newContent;
+    writeCustomPrompts(prompts);
     return true;
   } catch (error) {
     console.error('Failed to save prompt:', error);
@@ -166,19 +168,13 @@ ipcMain.handle('save-prompt', async (event, topic, newContent) => {
   }
 });
 
-// Helper function to extract current prompt for a topic
-function getCurrentPromptForTopic(content, topic) {
-  const topicKey = topic.toLowerCase().replace(/[^a-z]/g, '');
-  const regex = new RegExp(`${topicKey}:\\s*\`([^\\\`]+)\``, 's');
-  const match = content.match(regex);
-  return match ? match[1] : '';
-}
+ipcMain.on('read-prompt-overrides-sync', (event) => {
+  event.returnValue = readCustomPrompts();
+});
 
-// Helper function to update prompt in file
-function updatePromptInFile(content, topicKey, newContent) {
-  const regex = new RegExp(`(${topicKey}:\\s*\`)([^\\\`]*)(\`)`, 's');
-  return content.replace(regex, `$1${newContent}$3`);
-}
+ipcMain.handle('read-prompt-overrides', async () => {
+  return readCustomPrompts();
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

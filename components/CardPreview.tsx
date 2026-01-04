@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import DOMPurify from 'dompurify';
 import { CardType, Flashcard } from '../types';
 
 interface CardPreviewProps {
@@ -40,6 +41,14 @@ export const CardPreview: React.FC<CardPreviewProps> = ({ card, isEditing, onUpd
     }
   }, [card.front, card.back, isEditing]); 
   
+  const sanitizeContent = (html: string) => DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: [
+      'b', 'i', 'em', 'strong', 'code', 'pre', 'sup', 'sub',
+      'br', 'hr', 'p', 'div', 'span', 'ul', 'ol', 'li'
+    ],
+    ALLOWED_ATTR: []
+  });
+
   const renderContent = (
     isFront: boolean,
     label: string, 
@@ -67,9 +76,13 @@ export const CardPreview: React.FC<CardPreviewProps> = ({ card, isEditing, onUpd
           placeholder={`Enter ${label.toLowerCase()}...`}
         />
       ) : (
-        <div 
+        <div
           className="prose prose-slate dark:prose-invert max-w-none flex-grow overflow-y-auto prose-p:my-1 prose-headings:my-2 text-sm sm:text-base"
-          dangerouslySetInnerHTML={{ __html: content || '<span class="text-slate-300 dark:text-slate-600 italic">Empty</span>' }}
+          dangerouslySetInnerHTML={{
+            __html: content
+              ? sanitizeContent(content)
+              : '<span class="text-slate-300 dark:text-slate-600 italic">Empty</span>'
+          }}
         />
       )}
     </div>
