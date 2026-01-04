@@ -61,7 +61,6 @@ const App: React.FC = () => {
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [amendInstruction, setAmendInstruction] = useState<string>('');
   const [isAmending, setIsAmending] = useState<boolean>(false);
-  const [zoomLevel, setZoomLevel] = useState<number>(1);
 
   // --- Effects ---
 
@@ -73,20 +72,6 @@ const App: React.FC = () => {
       document.documentElement.classList.remove('dark');
     }
   }, [darkMode]);
-
-  useEffect(() => {
-    const handleWheel = (event: WheelEvent) => {
-      if (!event.ctrlKey) return;
-      event.preventDefault();
-      const direction = event.deltaY < 0 ? 1 : -1;
-      setZoomLevel(prev => {
-        const next = prev + direction * 0.1;
-        return Math.min(Math.max(next, 0.6), 1.4);
-      });
-    };
-    window.addEventListener('wheel', handleWheel, { passive: false });
-    return () => window.removeEventListener('wheel', handleWheel);
-  }, []);
 
   const setGeminiApiKey = (key: string) => {
     setGeminiApiKeyState(key);
@@ -264,10 +249,7 @@ const App: React.FC = () => {
   // --- Render ---
 
   return (
-    <div
-      className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-12 font-sans transition-colors duration-300"
-      style={{ zoom: zoomLevel }}
-    >
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-12 font-sans transition-colors duration-300">
       <SettingsModal 
         isOpen={showSettings}
         onClose={() => setShowSettings(false)}
