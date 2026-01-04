@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, ipcMain } from 'electron';
+import { app, BrowserWindow, Menu, ipcMain, globalShortcut } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
@@ -118,6 +118,36 @@ const createWindow = () => {
 
   Menu.setApplicationMenu(null);
 
+  // Register zoom shortcuts when window is focused
+  const registerZoomShortcuts = () => {
+    globalShortcut.register('CommandOrControl+Plus', () => {
+      const current = win.webContents.getZoomLevel();
+      win.webContents.setZoomLevel(Math.min(current + 0.5, 3));
+    });
+    globalShortcut.register('CommandOrControl+=', () => {
+      const current = win.webContents.getZoomLevel();
+      win.webContents.setZoomLevel(Math.min(current + 0.5, 3));
+    });
+    globalShortcut.register('CommandOrControl+-', () => {
+      const current = win.webContents.getZoomLevel();
+      win.webContents.setZoomLevel(Math.max(current - 0.5, -3));
+    });
+    globalShortcut.register('CommandOrControl+0', () => {
+      win.webContents.setZoomLevel(0);
+    });
+  };
+
+  const unregisterZoomShortcuts = () => {
+    globalShortcut.unregister('CommandOrControl+Plus');
+    globalShortcut.unregister('CommandOrControl+=');
+    globalShortcut.unregister('CommandOrControl+-');
+    globalShortcut.unregister('CommandOrControl+0');
+  };
+
+  win.on('focus', registerZoomShortcuts);
+  win.on('blur', unregisterZoomShortcuts);
+  win.webContents.on('did-finish-load', registerZoomShortcuts);
+
   const isDev = process.env.NODE_ENV === 'development';
 
   if (isDev) {
@@ -142,6 +172,22 @@ app.whenReady().then(() => {
       createWindow();
     }
   });
+});
+
+ipcMain.handle('zoom-in', async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (win) {
+    const current = win.webContents.getZoomLevel();
+    win.webContents.setZoomLevel(Math.min(current + 0.5, 3));
+  }
+});
+
+ipcMain.handle('zoom-out', async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (win) {
+    const current = win.webContents.getZoomLevel();
+    win.webContents.setZoomLevel(Math.max(current - 0.5, -3));
+  }
 });
 
 ipcMain.handle('load-prompt-backups', async (event, topic) => {
