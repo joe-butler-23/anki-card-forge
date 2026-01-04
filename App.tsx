@@ -73,6 +73,24 @@ const App: React.FC = () => {
     }
   }, [darkMode]);
 
+  // Ctrl+wheel zoom via Electron IPC
+  useEffect(() => {
+    const handleWheel = (event: WheelEvent) => {
+      if (!event.ctrlKey) return;
+      event.preventDefault();
+      const electronAPI = (window as any).electronAPI;
+      if (electronAPI) {
+        if (event.deltaY < 0) {
+          electronAPI.zoomIn();
+        } else {
+          electronAPI.zoomOut();
+        }
+      }
+    };
+    window.addEventListener('wheel', handleWheel, { passive: false });
+    return () => window.removeEventListener('wheel', handleWheel);
+  }, []);
+
   const setGeminiApiKey = (key: string) => {
     setGeminiApiKeyState(key);
     localStorage.setItem('geminiApiKey', key);

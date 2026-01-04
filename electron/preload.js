@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron';
+const { contextBridge, ipcRenderer } = require('electron');
 
 const readOverrides = () => {
   try {
@@ -19,5 +19,7 @@ contextBridge.exposeInMainWorld('customPromptOverrides', promptOverrides);
 contextBridge.exposeInMainWorld('electronAPI', {
   savePrompt: (topic, content) => ipcRenderer.invoke('save-prompt', topic, content),
   loadPromptBackups: (topic) => ipcRenderer.invoke('load-prompt-backups', topic),
-  refreshPromptOverrides: () => ipcRenderer.invoke('read-prompt-overrides')
+  refreshPromptOverrides: () => ipcRenderer.invoke('read-prompt-overrides'),
+  zoomIn: () => ipcRenderer.invoke('zoom-in'),
+  zoomOut: () => ipcRenderer.invoke('zoom-out')
 });
