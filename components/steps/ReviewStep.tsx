@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { CheckCircle2, Trash2, Edit2, Wand2, Loader2 } from 'lucide-react';
+import { CheckCircle2, Trash2, Edit2, Wand2, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Flashcard } from '../../types';
 import { CardPreview } from '../CardPreview';
 
@@ -12,6 +12,7 @@ interface ReviewStepProps {
   setIsEditing: (val: boolean) => void;
   onManualUpdate: (field: keyof Flashcard, value: string) => void;
   onAction: (action: 'accept' | 'reject') => void;
+  onNavigate: (index: number) => void;
   amendInstruction: string;
   setAmendInstruction: (val: string) => void;
   onAmend: () => void;
@@ -26,6 +27,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
   setIsEditing,
   onManualUpdate,
   onAction,
+  onNavigate,
   amendInstruction,
   setAmendInstruction,
   onAmend,
@@ -37,7 +39,25 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
     <div className="max-w-6xl mx-auto space-y-6 animate-in slide-in-from-right-8 duration-300">
       {/* Header / Progress */}
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200">Reviewing Card {currentIndex + 1} / {totalCards}</h2>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => onNavigate(currentIndex - 1)}
+            disabled={currentIndex === 0}
+            className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            title="Previous card"
+          >
+            <ChevronLeft size={20} />
+          </button>
+          <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200">Reviewing Card {currentIndex + 1} / {totalCards}</h2>
+          <button
+            onClick={() => onNavigate(currentIndex + 1)}
+            disabled={currentIndex === totalCards - 1}
+            className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            title="Next card"
+          >
+            <ChevronRight size={20} />
+          </button>
+        </div>
         <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
           <span>Progress</span>
           <div className="w-24 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
