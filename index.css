@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Reduce base font size by 2px (16px -> 14px) */
+html {
+  font-size: 14px;
+}
+
 /* Custom scrollbar override for electron */
 body {
   overflow-y: overlay;
