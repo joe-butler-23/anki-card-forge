@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, ipcMain, globalShortcut } from 'electron';
+import { app, BrowserWindow, Menu, ipcMain, globalShortcut, safeStorage } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
@@ -9,6 +9,9 @@ const userDataPath = app.getPath('userData');
 const promptsDir = path.join(userDataPath, 'prompts');
 const customPromptsPath = path.join(promptsDir, 'prompts.json');
 const backupsPath = path.join(promptsDir, 'backups');
+
+// Secure storage for API keys
+const credentialsPath = path.join(userDataPath, 'credentials.enc');
 
 const normalizeTopicKey = (topic) => {
   if (!topic) return 'general';
@@ -220,6 +223,49 @@ ipcMain.on('read-prompt-overrides-sync', (event) => {
 
 ipcMain.handle('read-prompt-overrides', async () => {
   return readCustomPrompts();
+});
+
+// Secure API Key Storage using safeStorage
+ipcMain.handle('get-api-key', async () => {
+  try {
+    if (!safeStorage.isEncryptionAvailable()) {
+      console.warn('Secure storage not available on this system');
+      return null;
+    }
+
+    if (!fs.existsSync(credentialsPath)) {
+      return null;
+    }
+
+    const encryptedData = fs.readFileSync(credentialsPath);
+    const decrypted = safeStorage.decryptString(encryptedData);
+    const credentials = JSON.parse(decrypted);
+    return credentials.geminiApiKey || null;
+  } catch (error) {
+    console.error('Failed to read API key from secure storage:', error);
+    return null;
+  }
+});
+
+ipcMain.handle('set-api-key', async (event, apiKey) => {
+  try {
+    if (!safeStorage.isEncryptionAvailable()) {
+      console.warn('Secure storage not available on this system');
+      return false;
+    }
+
+    const credentials = { geminiApiKey: apiKey };
+    const encrypted = safeStorage.encryptString(JSON.stringify(credentials));
+    fs.writeFileSync(credentialsPath, encrypted);
+    return true;
+  } catch (error) {
+    console.error('Failed to save API key to secure storage:', error);
+    return false;
+  }
+});
+
+ipcMain.handle('is-secure-storage-available', async () => {
+  return safeStorage.isEncryptionAvailable();
 });
 
 app.on('window-all-closed', () => {

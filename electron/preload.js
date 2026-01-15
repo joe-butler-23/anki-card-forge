@@ -21,5 +21,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   loadPromptBackups: (topic) => ipcRenderer.invoke('load-prompt-backups', topic),
   refreshPromptOverrides: () => ipcRenderer.invoke('read-prompt-overrides'),
   zoomIn: () => ipcRenderer.invoke('zoom-in'),
-  zoomOut: () => ipcRenderer.invoke('zoom-out')
+  zoomOut: () => ipcRenderer.invoke('zoom-out'),
+  // Secure API Key Storage
+  getApiKey: () => ipcRenderer.invoke('get-api-key'),
+  setApiKey: (apiKey) => ipcRenderer.invoke('set-api-key', apiKey),
+  isSecureStorageAvailable: () => ipcRenderer.invoke('is-secure-storage-available')
 });
