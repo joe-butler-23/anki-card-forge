@@ -12,9 +12,12 @@ import {
   addNotesToAnki,
   setAnkiUrl 
 } from './services/ankiConnectService';
-import { 
-  generateFlashcards, 
-  amendFlashcard 
+import {
+  generateFlashcards,
+  amendFlashcard,
+  GeminiAPIError,
+  JSONParseError,
+  AIResponseValidationError
 } from './services/geminiService';
 import { AlertCircle } from 'lucide-react';
 
@@ -46,8 +49,9 @@ const App: React.FC = () => {
   // Connection Settings
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [customUrl, setCustomUrlState] = useState<string>('http://127.0.0.1:8765');
-  const [geminiApiKey, setGeminiApiKeyState] = useState<string>(() => localStorage.getItem('geminiApiKey') || '');
+  const [geminiApiKey, setGeminiApiKeyState] = useState<string>('');
   const [isCheckingConnection, setIsCheckingConnection] = useState<boolean>(false);
+  const [isLoadingApiKey, setIsLoadingApiKey] = useState<boolean>(true);
 
   // Card Management
   const [generatedCards, setGeneratedCards] = useState<Flashcard[]>([]);
@@ -91,8 +95,74 @@ const App: React.FC = () => {
     return () => window.removeEventListener('wheel', handleWheel);
   }, []);
 
-  const setGeminiApiKey = (key: string) => {
+  // Load API key from secure storage (with migration from localStorage)
+  useEffect(() => {
+    const loadApiKey = async () => {
+      const electronAPI = (window as any).electronAPI;
+
+      if (electronAPI?.getApiKey) {
+        try {
+          // First, try to load from secure storage
+          let apiKey = await electronAPI.getApiKey();
+
+          // If no key in secure storage, check localStorage for migration
+          if (!apiKey) {
+            const localStorageKey = localStorage.getItem('geminiApiKey');
+            if (localStorageKey) {
+              // Migrate from localStorage to secure storage
+              const saved = await electronAPI.setApiKey(localStorageKey);
+              if (saved) {
+                apiKey = localStorageKey;
+                // Clear localStorage after successful migration
+                localStorage.removeItem('geminiApiKey');
+                console.log('API key migrated from localStorage to secure storage');
+              }
+            }
+          }
+
+          if (apiKey) {
+            setGeminiApiKeyState(apiKey);
+          }
+        } catch (error) {
+          console.error('Failed to load API key:', error);
+          // Fallback to localStorage if secure storage fails
+          const fallbackKey = localStorage.getItem('geminiApiKey');
+          if (fallbackKey) {
+            setGeminiApiKeyState(fallbackKey);
+          }
+        }
+      } else {
+        // Not running in Electron, use localStorage fallback
+        const fallbackKey = localStorage.getItem('geminiApiKey');
+        if (fallbackKey) {
+          setGeminiApiKeyState(fallbackKey);
+        }
+      }
+
+      setIsLoadingApiKey(false);
+    };
+
+    loadApiKey();
+  }, []);
+
+  const setGeminiApiKey = async (key: string) => {
     setGeminiApiKeyState(key);
+
+    const electronAPI = (window as any).electronAPI;
+    if (electronAPI?.setApiKey) {
+      try {
+        const saved = await electronAPI.setApiKey(key);
+        if (saved) {
+          // Ensure localStorage is cleared when using secure storage
+          localStorage.removeItem('geminiApiKey');
+          return;
+        }
+      } catch (error) {
+        console.error('Failed to save API key to secure storage:', error);
+      }
+    }
+
+    // Fallback to localStorage if secure storage fails or unavailable
     localStorage.setItem('geminiApiKey', key);
   };
   
@@ -174,7 +244,21 @@ const App: React.FC = () => {
       setStep(AppStep.Reviewing);
     } catch (e) {
       console.error(e);
-      setError("Generation failed. Please check your API Key and network.");
+
+      // Provide specific error messages based on error type
+      let errorMessage = 'Generation failed. Please try again.';
+
+      if (e instanceof AIResponseValidationError) {
+        errorMessage = `AI response validation failed:\n${e.details.join('\n')}`;
+      } else if (e instanceof JSONParseError) {
+        errorMessage = 'AI returned an invalid response format. Please try again.';
+      } else if (e instanceof GeminiAPIError) {
+        errorMessage = e.message;
+      } else if (e instanceof Error) {
+        errorMessage = e.message;
+      }
+
+      setError(errorMessage);
       setStep(AppStep.Setup);
     }
   };
@@ -208,7 +292,21 @@ const App: React.FC = () => {
       
       setAmendInstruction('');
     } catch (e) {
-      setError("Failed to amend card.");
+      console.error(e);
+
+      let errorMessage = 'Failed to amend card.';
+
+      if (e instanceof AIResponseValidationError) {
+        errorMessage = `Card amendment validation failed:\n${e.details.join('\n')}`;
+      } else if (e instanceof JSONParseError) {
+        errorMessage = 'AI returned an invalid response. Please try again.';
+      } else if (e instanceof GeminiAPIError) {
+        errorMessage = e.message;
+      } else if (e instanceof Error) {
+        errorMessage = e.message;
+      }
+
+      setError(errorMessage);
     } finally {
       setIsAmending(false);
     }

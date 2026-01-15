@@ -4,6 +4,28 @@ import { flashcardResponseSchema, singleFlashcardSchema } from '../models/schema
 import { SYSTEM_INSTRUCTION } from '../prompts/system';
 import { AMEND_SYSTEM_INSTRUCTION } from '../prompts/amend';
 import { TOPIC_PROMPTS } from '../prompts/topics';
+import {
+  validateFlashcardResponse,
+  validateSingleFlashcard,
+  AIResponseValidationError
+} from '../validation/flashcardSchema';
+
+// Custom error classes for different failure modes
+export class GeminiAPIError extends Error {
+  constructor(message: string, public readonly originalError?: Error) {
+    super(message);
+    this.name = 'GeminiAPIError';
+  }
+}
+
+export class JSONParseError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'JSONParseError';
+  }
+}
+
+export { AIResponseValidationError };
 
 const normalizeCardType = (aiCardType: string): CardType => {
   console.log(`[Debug] Normalizing card type. Raw AI value: "${aiCardType}"`);
@@ -107,24 +129,57 @@ export const generateFlashcards = async (
       config,
     });
 
-    if (response.text) {
-      const rawData = JSON.parse(response.text);
-      console.log('[Debug] Raw data received from AI:', rawData);
-
-      // Add IDs and normalize the card type
-      return rawData.map((card: any) => {
-        console.log(`[Debug] Raw cardType from AI for a card: "${card.cardType}"`);
-        return {
-          ...card,
-          id: crypto.randomUUID(),
-          cardType: normalizeCardType(card.cardType),
-        };
-      });
+    if (!response.text) {
+      throw new GeminiAPIError('AI returned empty response');
     }
-    return [];
+
+    // Parse JSON response
+    let rawData: unknown;
+    try {
+      rawData = JSON.parse(response.text);
+    } catch (parseError) {
+      console.error('JSON Parse Error:', parseError);
+      throw new JSONParseError('AI returned invalid JSON format');
+    }
+
+    console.log('[Debug] Raw data received from AI:', rawData);
+
+    // Validate the response structure using Zod
+    const validatedCards = validateFlashcardResponse(rawData);
+
+    // Add IDs - cardType is already validated by Zod
+    return validatedCards.map((card) => {
+      console.log(`[Debug] Validated cardType for a card: "${card.cardType}"`);
+      return {
+        ...card,
+        id: crypto.randomUUID(),
+      };
+    });
   } catch (error) {
     console.error("Gemini Generation Error:", error);
-    throw error;
+
+    // Re-throw known error types as-is
+    if (error instanceof JSONParseError ||
+        error instanceof AIResponseValidationError ||
+        error instanceof GeminiAPIError) {
+      throw error;
+    }
+
+    // Wrap unknown errors with more context
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+    // Check for common API errors
+    if (errorMessage.includes('API_KEY') || errorMessage.includes('api key') || errorMessage.includes('401')) {
+      throw new GeminiAPIError('Invalid API key');
+    }
+    if (errorMessage.includes('429') || errorMessage.includes('quota') || errorMessage.includes('rate')) {
+      throw new GeminiAPIError('Rate limited - please wait and try again');
+    }
+    if (errorMessage.includes('network') || errorMessage.includes('ECONNREFUSED') || errorMessage.includes('fetch')) {
+      throw new GeminiAPIError('Network error - check your connection');
+    }
+
+    throw new GeminiAPIError(`Generation failed: ${errorMessage}`, error instanceof Error ? error : undefined);
   }
 };
 
@@ -159,18 +214,39 @@ export const amendFlashcard = async (
       },
     });
 
-    if (response.text) {
-      const modifiedCard = JSON.parse(response.text);
-      // Preserve the original ID and normalize the type
-      return {
-        ...modifiedCard,
-        id: card.id,
-        cardType: normalizeCardType(modifiedCard.cardType),
-      };
+    if (!response.text) {
+      throw new GeminiAPIError('AI returned empty response for amendment');
     }
-    throw new Error("No response text from AI for amendment");
+
+    // Parse JSON response
+    let rawData: unknown;
+    try {
+      rawData = JSON.parse(response.text);
+    } catch (parseError) {
+      console.error('JSON Parse Error:', parseError);
+      throw new JSONParseError('AI returned invalid JSON format for amendment');
+    }
+
+    // Validate the response structure using Zod
+    const validatedCard = validateSingleFlashcard(rawData);
+
+    // Preserve the original ID - cardType is already validated by Zod
+    return {
+      ...validatedCard,
+      id: card.id,
+    };
   } catch (error) {
     console.error("Gemini Amendment Error:", error);
-    throw error;
+
+    // Re-throw known error types as-is
+    if (error instanceof JSONParseError ||
+        error instanceof AIResponseValidationError ||
+        error instanceof GeminiAPIError) {
+      throw error;
+    }
+
+    // Wrap unknown errors
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new GeminiAPIError(`Amendment failed: ${errorMessage}`, error instanceof Error ? error : undefined);
   }
 };
