@@ -165,11 +165,11 @@ export const PromptEditor: React.FC<PromptEditorProps> = ({
         )}
 
         {/* Editor */}
-        <div className="flex-1 p-6 overflow-hidden">
+        <div className="flex-1 p-6 overflow-auto">
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            className="w-full h-full p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg resize-none font-mono text-sm text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+            className="w-full min-h-[200px] p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg resize-y font-mono text-sm text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
             placeholder="Enter your prompt here..."
           />
         </div>

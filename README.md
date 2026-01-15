@@ -4,87 +4,67 @@
 
 # Anki Card Forge
 
-AI-powered flashcard generation application for Anki.
+AI-powered flashcard generation for Anki. Transform your notes into study-ready flashcards with the power of Google's Gemini AI.
 
-## Run Locally (Standard)
+## Features
 
-**Prerequisites:** Node.js
+- **AI-Powered Generation** - Paste your notes and let Gemini create well-structured flashcards
+- **Multiple Topics** - Optimized prompts for General, Math/Science, Vocabulary, and Programming
+- **Image Support** - Upload images and generate cards from visual content
+- **Deep Thinking Mode** - Enable extended AI reasoning for complex topics
+- **Direct Anki Sync** - Send cards directly to Anki via AnkiConnect
+- **Card Review** - Review, edit, or reject cards before adding to your deck
+- **Custom Prompts** - Customize the AI prompts for each topic type
 
-1. Install dependencies: `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app: `npm run dev`
+## Getting Started
 
-## Nix Development
+### Prerequisites
 
-### Quick Start
+1. **Anki** with [AnkiConnect](https://ankiweb.net/shared/info/2055492159) add-on installed
+2. **Gemini API Key** - Get one free at [Google AI Studio](https://aistudio.google.com/apikey)
 
-```bash
-# Enter dev shell (has node, electron, etc.)
-nix develop
+### Installation
 
-# Install npm deps (first time only)
-npm install
+Download the latest release for your platform from the [Releases](https://github.com/yourusername/anki-forge-app/releases) page.
 
-# Run in development mode
-npm run build && electron .
+### Setup
 
-# Or with dev tools open
-npm run build && NODE_ENV=development electron .
-```
+1. Launch Anki Card Forge
+2. Click the **Settings** icon (gear) in the header
+3. Enter your **Gemini API Key**
+4. Ensure Anki is running with AnkiConnect enabled
+5. Click **Test Connection** to verify
 
-### Building the Package
+## Usage
 
-```bash
-# Build the Nix package
-nix build
+1. **Select a Topic** - Choose the type of content (General, Math/Science, etc.)
+2. **Enter Notes** - Paste or type your study material
+3. **Generate** - Click "Forge Cards" to create flashcards
+4. **Review** - Accept, edit, or reject each generated card
+5. **Sync** - Send approved cards to your Anki deck
 
-# Test the built package
-./result/bin/anki-card-forge
-```
+### Tips
 
-### Updating NixOS System Install
+- **Be specific** - More detailed notes produce better cards
+- **Use topics** - Math/Science mode ensures proper LaTeX formatting
+- **Edit prompts** - Click "Edit" next to the topic to customize AI behavior
+- **Thinking mode** - Enable for complex topics that need deeper reasoning
 
-If you have anki-card-forge in your NixOS system configuration as a flake input:
+## Keyboard Shortcuts
 
-```bash
-# 1. Commit and push your changes
-git add -A && git commit -m "Your changes"
-git push
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl/Cmd + =` | Zoom in |
+| `Ctrl/Cmd + -` | Zoom out |
+| `Ctrl/Cmd + 0` | Reset zoom |
+| `Ctrl + Scroll` | Zoom in/out |
 
-# 2. Update the flake lock in your NixOS config
-sudo nix flake update anki-forge --flake /etc/nixos
+## Privacy & Security
 
-# 3. Rebuild
-sudo nixos-rebuild switch
-```
+- Your API key is stored securely using your operating system's credential manager
+- Notes and generated cards are processed locally and sent only to the Gemini API
+- No data is collected or stored by the application
 
-#### Testing local changes without pushing
+## License
 
-```bash
-# Override the flake input temporarily
-sudo nix flake lock --override-input anki-forge path:/path/to/anki-forge-app --flake /etc/nixos
-sudo nixos-rebuild switch
-```
-
-### Troubleshooting
-
-**`nix develop` is slow / building from source:**
-
-The flake uses `nixos-24.11` stable for good binary cache coverage. If builds are slow:
-
-```bash
-# Update flake inputs to get cached versions
-nix flake update
-```
-
-**Electron binary errors (missing .so files):**
-
-Don't use `npx electron` directly on NixOS. Always run electron via the dev shell:
-
-```bash
-nix develop -c electron .
-```
-
-**Preload script errors ("Cannot use import statement"):**
-
-The preload script (`electron/preload.js`) must use CommonJS syntax (`require`) not ES modules (`import`).
+MIT
