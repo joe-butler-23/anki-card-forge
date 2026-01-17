@@ -102,23 +102,36 @@ const App: React.FC = () => {
 
       if (electronAPI?.getApiKey) {
         try {
+          // Log secure storage availability
+          if (electronAPI.isSecureStorageAvailable) {
+            const available = await electronAPI.isSecureStorageAvailable();
+            console.log('Secure storage available:', available);
+          }
           // First, try to load from secure storage
           let apiKey = await electronAPI.getApiKey();
 
-          // If no key in secure storage, check localStorage for migration
-          if (!apiKey) {
-            const localStorageKey = localStorage.getItem('geminiApiKey');
-            if (localStorageKey) {
-              // Migrate from localStorage to secure storage
-              const saved = await electronAPI.setApiKey(localStorageKey);
-              if (saved) {
-                apiKey = localStorageKey;
-                // Clear localStorage after successful migration
-                localStorage.removeItem('geminiApiKey');
-                console.log('API key migrated from localStorage to secure storage');
-              }
-            }
-          }
+           // If no key in secure storage, check localStorage for migration
+           if (!apiKey) {
+             console.log('No API key in secure storage; checking localStorage');
+             const localStorageKey = localStorage.getItem('geminiApiKey');
+             if (localStorageKey) {
+               console.log('Found API key in localStorage; attempting migration');
+               // Migrate from localStorage to secure storage
+               const saved = await electronAPI.setApiKey(localStorageKey);
+               if (saved) {
+                 apiKey = localStorageKey;
+                 // Clear localStorage after successful migration
+                 localStorage.removeItem('geminiApiKey');
+                 console.log('API key migrated from localStorage to secure storage');
+               } else {
+                 // Migration failed, but we have the key in localStorage; use it
+                 apiKey = localStorageKey;
+                 console.warn('Secure storage unavailable; using localStorage fallback for loading');
+               }
+             } else {
+               console.log('No API key found in localStorage either');
+             }
+           }
 
           if (apiKey) {
             setGeminiApiKeyState(apiKey);
