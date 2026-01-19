@@ -19,9 +19,9 @@ Anki Card Forge is an Electron application built with React and TypeScript. It u
 -   `components/`: React components for the UI.
 -   `electron/`: Main process code for Electron.
 -   `services/`: Contains the core application logic.
-    -   `geminiService.ts`: Handles all interaction with the Google Gemini API.
+    -   `geminiService.ts`: Builds prompts and requests Gemini generation through IPC.
     -   `ankiConnectService.ts`: Handles all interaction with the AnkiConnect API.
--   `models/`: Defines the JSON schemas for AI responses.
+-   `electron/gemini.js`: Executes Gemini API calls in the main process.
 -   `prompts/`: System prompts for the AI.
 -   `types/`: Shared TypeScript types and enums (e.g., `CardType`).
 -   `flake.nix`: The heart of the project's dependency and build management.
@@ -151,9 +151,9 @@ This command compiles the application and places the output in a local `result` 
 The main logic for generating and processing card types is spread across a few key files:
 
 1.  **`types.ts`**: The `CardType` enum defines the valid, known card types for the entire application.
-2.  **`models/schemas.ts`**: The `cardSchema` defines the structure the AI is expected to return, including the allowed `cardType` values.
-3.  **`services/geminiService.ts`**: The `generateFlashcards` function calls the Gemini API. The `normalizeCardType` function within this file is crucial for cleaning the AI's output and mapping it to a valid `CardType` enum, preventing errors from minor string variations.
-4.  **`services/ankiConnectService.ts`**: The `addNotesToAnki` function takes the processed `Flashcard` objects and maps their `cardType` to the correct Anki note type (`modelName`) and fields before sending them to Anki.
+2.  **`electron/gemini.js`**: Gemini API calls and response schemas live in the main process for security.
+3.  **`services/geminiService.ts`**: The renderer builds prompts, calls the IPC handlers, parses JSON, and validates output with Zod.
+4.  **`services/ankiConnectService.ts`**: The `addNotesToAnki` function maps `cardType` to the correct Anki note type (`modelName`) and sanitizes fields before sending them to Anki.
 
 ## Troubleshooting Common Build & Development Issues
 
@@ -215,4 +215,3 @@ This section documents common issues encountered during development and building
 2.  Run `nix build`. It will fail, but the error message will provide the correct, updated `sha256-...` hash.
 3.  Replace `npmDepsHash = "";` with the correct hash provided in the error message.
 4.  Run `nix build` again.
-

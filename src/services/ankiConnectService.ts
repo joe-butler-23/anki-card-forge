@@ -1,7 +1,13 @@
 import { ANKI_CONNECT_URL_PRIMARY, ANKI_CONNECT_URL_FALLBACK } from '../constants';
 import { AnkiConnectResponse, Flashcard, CardType } from '../types';
+import { sanitizeCardHtml } from '../utils/sanitizeHtml';
+
+const isDev = import.meta.env.DEV;
 
 let customAnkiUrl: string | null = null;
+
+const isLocalhostHost = (host: string) =>
+  host === 'localhost' || host === '127.0.0.1' || host === '::1';
 
 export const setAnkiUrl = (url: string) => {
   if (!url.trim()) {
@@ -13,8 +19,17 @@ export const setAnkiUrl = (url: string) => {
   if (!formattedUrl.startsWith('http')) {
     formattedUrl = `http://${formattedUrl}`;
   }
+  let parsed: URL;
+  try {
+    parsed = new URL(formattedUrl);
+  } catch {
+    throw new Error('Invalid AnkiConnect URL.');
+  }
+  if (!isLocalhostHost(parsed.hostname)) {
+    throw new Error('AnkiConnect must be hosted on localhost.');
+  }
   // Remove trailing slash
-  customAnkiUrl = formattedUrl.replace(/\/$/, "");
+  customAnkiUrl = parsed.toString().replace(/\/$/, "");
 };
 
 // Helper for the fetch strategy
@@ -53,7 +68,9 @@ async function invokeAnki<T>(action: string, params: any = {}): Promise<T> {
       return json.result;
 
     } catch (e: any) {
-      console.warn(`Connection attempt to ${url} failed:`, e);
+      if (isDev) {
+        console.warn(`Connection attempt to ${url} failed:`, e);
+      }
       errors.push(`${url}: ${e.message || 'Unknown error'}`);
       // Continue to next candidate
     }
@@ -95,26 +112,34 @@ export const pingAnki = async (): Promise<void> => {
 };
 
 export const addNotesToAnki = async (cards: Flashcard[], deckName: string): Promise<number[]> => {
-  console.log('[Debug] Preparing to add notes to Anki. Processing cards...');
+  if (isDev) {
+    console.log('[Debug] Preparing to add notes to Anki. Processing cards...');
+  }
   const notes = cards
     .filter(c => !c.isDeleted)
     .map(card => {
-      console.log(`[Debug] Processing card. Internal type: "${card.cardType}"`);
+      if (isDev) {
+        console.log(`[Debug] Processing card. Internal type: "${card.cardType}"`);
+      }
       // Map internal types to AnkiConnect types
       let modelName = 'Basic';
       const fields: Record<string, string> = {};
+      const sanitizedFront = sanitizeCardHtml(card.front);
+      const sanitizedBack = sanitizeCardHtml(card.back);
 
       if (card.cardType === CardType.Basic) {
         modelName = 'Basic';
-        fields['Front'] = card.front;
-        fields['Back'] = card.back;
+        fields['Front'] = sanitizedFront;
+        fields['Back'] = sanitizedBack;
       } else if (card.cardType === CardType.BasicTyping) {
         modelName = 'Basic (type in the answer)';
-        fields['Front'] = card.front;
-        fields['Back'] = card.back;
+        fields['Front'] = sanitizedFront;
+        fields['Back'] = sanitizedBack;
       }
       
-      console.log(`[Debug] Mapped to Anki modelName: "${modelName}"`);
+      if (isDev) {
+        console.log(`[Debug] Mapped to Anki modelName: "${modelName}"`);
+      }
 
       return {
         deckName,
@@ -127,10 +152,14 @@ export const addNotesToAnki = async (cards: Flashcard[], deckName: string): Prom
     });
 
   if (notes.length === 0) {
-    console.log('[Debug] No valid notes to add.');
+    if (isDev) {
+      console.log('[Debug] No valid notes to add.');
+    }
     return [];
   }
   
-  console.log('[Debug] Sending final notes payload to AnkiConnect:', notes);
+  if (isDev) {
+    console.log('[Debug] Sending final notes payload to AnkiConnect:', notes);
+  }
   return invokeAnki<number[]>('addNotes', { notes });
 };

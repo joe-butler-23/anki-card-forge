@@ -49,9 +49,9 @@ const App: React.FC = () => {
   // Connection Settings
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [customUrl, setCustomUrlState] = useState<string>('http://127.0.0.1:8765');
-  const [geminiApiKey, setGeminiApiKeyState] = useState<string>('');
+  const [hasGeminiApiKey, setHasGeminiApiKey] = useState<boolean>(false);
   const [isCheckingConnection, setIsCheckingConnection] = useState<boolean>(false);
-  const [isLoadingApiKey, setIsLoadingApiKey] = useState<boolean>(true);
+  const [isCheckingApiKey, setIsCheckingApiKey] = useState<boolean>(true);
 
   // Card Management
   const [generatedCards, setGeneratedCards] = useState<Flashcard[]>([]);
@@ -95,88 +95,56 @@ const App: React.FC = () => {
     return () => window.removeEventListener('wheel', handleWheel);
   }, []);
 
-  // Load API key from secure storage (with migration from localStorage)
+  // Check for stored API key in secure storage or environment
   useEffect(() => {
-    const loadApiKey = async () => {
+    const checkApiKey = async () => {
       const electronAPI = (window as any).electronAPI;
 
-      if (electronAPI?.getApiKey) {
+      if (electronAPI?.hasApiKey) {
         try {
-          // Log secure storage availability
-          if (electronAPI.isSecureStorageAvailable) {
-            const available = await electronAPI.isSecureStorageAvailable();
-            console.log('Secure storage available:', available);
-          }
-          // First, try to load from secure storage
-          let apiKey = await electronAPI.getApiKey();
-
-           // If no key in secure storage, check localStorage for migration
-           if (!apiKey) {
-             console.log('No API key in secure storage; checking localStorage');
-             const localStorageKey = localStorage.getItem('geminiApiKey');
-             if (localStorageKey) {
-               console.log('Found API key in localStorage; attempting migration');
-               // Migrate from localStorage to secure storage
-               const saved = await electronAPI.setApiKey(localStorageKey);
-               if (saved) {
-                 apiKey = localStorageKey;
-                 // Clear localStorage after successful migration
-                 localStorage.removeItem('geminiApiKey');
-                 console.log('API key migrated from localStorage to secure storage');
-               } else {
-                 // Migration failed, but we have the key in localStorage; use it
-                 apiKey = localStorageKey;
-                 console.warn('Secure storage unavailable; using localStorage fallback for loading');
-               }
-             } else {
-               console.log('No API key found in localStorage either');
-             }
-           }
-
-          if (apiKey) {
-            setGeminiApiKeyState(apiKey);
-          }
+          const hasKey = await electronAPI.hasApiKey();
+          setHasGeminiApiKey(hasKey);
         } catch (error) {
-          console.error('Failed to load API key:', error);
-          // Fallback to localStorage if secure storage fails
-          const fallbackKey = localStorage.getItem('geminiApiKey');
-          if (fallbackKey) {
-            setGeminiApiKeyState(fallbackKey);
-          }
-        }
-      } else {
-        // Not running in Electron, use localStorage fallback
-        const fallbackKey = localStorage.getItem('geminiApiKey');
-        if (fallbackKey) {
-          setGeminiApiKeyState(fallbackKey);
+          console.error('Failed to check API key:', error);
+          setHasGeminiApiKey(false);
         }
       }
 
-      setIsLoadingApiKey(false);
+      setIsCheckingApiKey(false);
     };
 
-    loadApiKey();
+    checkApiKey();
   }, []);
 
-  const setGeminiApiKey = async (key: string) => {
-    setGeminiApiKeyState(key);
-
+  const saveGeminiApiKey = async (key: string) => {
     const electronAPI = (window as any).electronAPI;
     if (electronAPI?.setApiKey) {
       try {
         const saved = await electronAPI.setApiKey(key);
         if (saved) {
-          // Ensure localStorage is cleared when using secure storage
-          localStorage.removeItem('geminiApiKey');
-          return;
+          setHasGeminiApiKey(true);
+          return true;
         }
       } catch (error) {
         console.error('Failed to save API key to secure storage:', error);
       }
     }
 
-    // Fallback to localStorage if secure storage fails or unavailable
-    localStorage.setItem('geminiApiKey', key);
+    return false;
+  };
+
+  const clearGeminiApiKey = async () => {
+    const electronAPI = (window as any).electronAPI;
+    if (electronAPI?.clearApiKey) {
+      try {
+        const cleared = await electronAPI.clearApiKey();
+        if (cleared) {
+          setHasGeminiApiKey(false);
+        }
+      } catch (error) {
+        console.error('Failed to clear API key:', error);
+      }
+    }
   };
   
   // Initial silent check
@@ -228,13 +196,21 @@ const App: React.FC = () => {
   const handleUrlUpdate = async (url?: string) => {
     // Use provided URL or fall back to state value
     const urlToUse = url || customUrl;
-    setAnkiUrl(urlToUse);
-    await handleRetryConnection();
+    try {
+      setAnkiUrl(urlToUse);
+      await handleRetryConnection();
+    } catch (e: any) {
+      setError(e?.message || 'Invalid AnkiConnect URL.');
+    }
   };
 
   const handleGenerate = async () => {
     if (!notes.trim() && !selectedImage) {
       setError("Please enter notes or upload an image.");
+      return;
+    }
+    if (!hasGeminiApiKey && !isCheckingApiKey) {
+      setError("Please add your Gemini API key in Settings before generating.");
       return;
     }
     setError(null);
@@ -247,7 +223,7 @@ const App: React.FC = () => {
     }
 
     try {
-      const cards = await generateFlashcards(notes, selectedTopic, geminiApiKey, 'gemini-3-pro-preview', selectedImage, useThinking);
+      const cards = await generateFlashcards(notes, selectedTopic, 'gemini-3-pro-preview', selectedImage, useThinking);
       
       if (cards.length === 0) {
         setError("AI returned no cards. Try adding more detail to your notes.");
@@ -299,7 +275,7 @@ const App: React.FC = () => {
     setIsAmending(true);
     try {
       const currentCard = generatedCards[currentCardIndex];
-      const newCard = await amendFlashcard(currentCard, amendInstruction, selectedTopic, geminiApiKey, 'gemini-3-pro-preview');
+      const newCard = await amendFlashcard(currentCard, amendInstruction, selectedTopic, 'gemini-3-pro-preview');
       
       const updated = [...generatedCards];
       updated[currentCardIndex] = newCard;
@@ -386,8 +362,10 @@ const App: React.FC = () => {
         onClose={() => setShowSettings(false)}
         customUrl={customUrl}
         setCustomUrl={setCustomUrlState}
-        geminiApiKey={geminiApiKey}
-        setGeminiApiKey={setGeminiApiKey}
+        hasGeminiApiKey={hasGeminiApiKey}
+        onSaveApiKey={saveGeminiApiKey}
+        onClearApiKey={clearGeminiApiKey}
+        isCheckingApiKey={isCheckingApiKey}
         isChecking={isCheckingConnection}
         onSave={handleUrlUpdate}
       />

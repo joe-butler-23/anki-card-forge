@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
-import DOMPurify from 'dompurify';
-import { CardType, Flashcard } from '../types';
+import { Flashcard } from '../types';
+import { ensureMathJaxReady } from '../services/mathjax';
+import { sanitizeCardHtml } from '../utils/sanitizeHtml';
 
 interface CardPreviewProps {
   card: Flashcard;
@@ -19,35 +20,36 @@ export const CardPreview: React.FC<CardPreviewProps> = ({ card, isEditing, onUpd
   useEffect(() => {
     if (isEditing) return; // Don't render math while editing text
 
-    if (typeof (window as any).MathJax !== 'undefined' && (window as any).MathJax.typesetPromise) {
-      const typeset = () => {
-        if (containerRef.current) {
-           (window as any).MathJax.typesetPromise([containerRef.current])
-            .catch((err: any) => console.debug('MathJax error:', err));
+    let cancelled = false;
+
+    const typeset = async () => {
+      try {
+        await ensureMathJaxReady();
+        if (cancelled) return;
+        const mathJax = (window as any).MathJax;
+        if (mathJax?.typesetPromise && containerRef.current) {
+          await mathJax.typesetPromise([containerRef.current]);
         }
-      };
-      
-      // Immediate attempt
-      typeset();
-      
-      // Retry to handle potential race conditions
-      const timer1 = setTimeout(typeset, 50);
-      const timer2 = setTimeout(typeset, 200);
-      
-      return () => {
-        clearTimeout(timer1);
-        clearTimeout(timer2);
-      };
-    }
+      } catch (err) {
+        if (import.meta.env.DEV) {
+          console.debug('MathJax error:', err);
+        }
+      }
+    };
+
+    // Immediate attempt
+    typeset();
+
+    // Retry to handle potential race conditions
+    const timer1 = setTimeout(typeset, 50);
+    const timer2 = setTimeout(typeset, 200);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+    };
   }, [card.front, card.back, isEditing]); 
-  
-  const sanitizeContent = (html: string) => DOMPurify.sanitize(html, {
-    ALLOWED_TAGS: [
-      'b', 'i', 'em', 'strong', 'code', 'pre', 'sup', 'sub',
-      'br', 'hr', 'p', 'div', 'span', 'ul', 'ol', 'li'
-    ],
-    ALLOWED_ATTR: []
-  });
 
   const renderContent = (
     isFront: boolean,
@@ -80,7 +82,7 @@ export const CardPreview: React.FC<CardPreviewProps> = ({ card, isEditing, onUpd
           className="prose prose-slate dark:prose-invert max-w-none flex-grow overflow-y-auto prose-p:my-1 prose-headings:my-2 text-sm sm:text-base"
           dangerouslySetInnerHTML={{
             __html: content
-              ? sanitizeContent(content)
+              ? sanitizeCardHtml(content)
               : '<span class="text-slate-300 dark:text-slate-600 italic">Empty</span>'
           }}
         />

@@ -7,8 +7,10 @@ interface SettingsModalProps {
   onClose: () => void;
   customUrl: string;
   setCustomUrl: (url: string) => void;
-  geminiApiKey: string;
-  setGeminiApiKey: (key: string) => void;
+  hasGeminiApiKey: boolean;
+  onSaveApiKey: (key: string) => Promise<boolean>;
+  onClearApiKey: () => void;
+  isCheckingApiKey: boolean;
   isChecking: boolean;
   onSave: (url?: string) => void;
 }
@@ -18,22 +20,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onClose,
   customUrl,
   setCustomUrl,
-  geminiApiKey,
-  setGeminiApiKey,
+  hasGeminiApiKey,
+  onSaveApiKey,
+  onClearApiKey,
+  isCheckingApiKey,
   isChecking,
   onSave
 }) => {
   // Local state for inputs - only save when user clicks "Save & Connect"
-  const [localApiKey, setLocalApiKey] = useState(geminiApiKey);
+  const [localApiKey, setLocalApiKey] = useState('');
   const [localUrl, setLocalUrl] = useState(customUrl);
 
   // Sync local state when modal opens or props change
   useEffect(() => {
     if (isOpen) {
-      setLocalApiKey(geminiApiKey);
+      setLocalApiKey('');
       setLocalUrl(customUrl);
     }
-  }, [isOpen, geminiApiKey, customUrl]);
+  }, [isOpen, customUrl]);
 
   if (!isOpen) return null;
 
@@ -41,7 +45,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const handleSave = async () => {
     // Save API key and URL before connecting
-    await setGeminiApiKey(localApiKey);
+    if (localApiKey.trim()) {
+      const saved = await onSaveApiKey(localApiKey.trim());
+      if (!saved) {
+        alert('Unable to save API key. Please try again.');
+        return;
+      }
+    }
     setCustomUrl(localUrl);
     onSave(localUrl);
   };
@@ -67,8 +77,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 value={localApiKey}
                 onChange={(e) => setLocalApiKey(e.target.value)}
                 className="flex-grow px-3 py-2.5 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                placeholder="Enter your Gemini API Key"
+                placeholder={hasGeminiApiKey ? "Leave blank to keep existing key" : "Enter your Gemini API Key"}
               />
+            </div>
+            <div className="mt-2 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+              {isCheckingApiKey ? 'Checking key status...' : (hasGeminiApiKey ? 'Key saved on this device.' : 'No key saved yet.')}
+              {hasGeminiApiKey && (
+                <button
+                  type="button"
+                  onClick={onClearApiKey}
+                  className="text-red-600 dark:text-red-400 hover:underline"
+                >
+                  Clear
+                </button>
+              )}
             </div>
           </div>
           <div>
@@ -82,6 +104,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 placeholder="http://127.0.0.1:8765"
               />
             </div>
+            <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+              For security, the app only connects to AnkiConnect on localhost.
+            </p>
           </div>
 
           <div className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 space-y-3">

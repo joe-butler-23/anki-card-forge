@@ -2,6 +2,7 @@ import { app, BrowserWindow, Menu, ipcMain, globalShortcut, safeStorage } from '
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+import { generateFlashcardsInMain, amendFlashcardInMain } from './gemini.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const promptsJsonPath = path.join(__dirname, '../src/prompts/topics.json');
@@ -12,6 +13,7 @@ const backupsPath = path.join(promptsDir, 'backups');
 
 // Secure storage for API keys
 const credentialsPath = path.join(userDataPath, 'credentials.enc');
+const defaultGeminiModel = 'gemini-3-pro-preview';
 
 const normalizeTopicKey = (topic) => {
   if (!topic) return 'general';
@@ -64,6 +66,33 @@ const getTopicBackupDir = (topic) => {
     fs.mkdirSync(dir, { recursive: true });
   }
   return dir;
+};
+
+const getEnvApiKey = () => process.env.GEMINI_API_KEY || process.env.API_KEY || null;
+
+const readStoredApiKey = () => {
+  if (!safeStorage.isEncryptionAvailable()) {
+    return null;
+  }
+  if (!fs.existsSync(credentialsPath)) {
+    return null;
+  }
+  const encryptedData = fs.readFileSync(credentialsPath);
+  const decrypted = safeStorage.decryptString(encryptedData);
+  const credentials = JSON.parse(decrypted);
+  return credentials.geminiApiKey || null;
+};
+
+const resolveApiKey = () => getEnvApiKey() || readStoredApiKey();
+
+const resolveModel = (model, image, useThinking) => {
+  if (image || useThinking) {
+    return defaultGeminiModel;
+  }
+  if (typeof model === 'string' && model.trim()) {
+    return model.trim();
+  }
+  return defaultGeminiModel;
 };
 
 const cleanupOldBackups = (dir) => {
@@ -225,25 +254,12 @@ ipcMain.handle('read-prompt-overrides', async () => {
   return readCustomPrompts();
 });
 
-// Secure API Key Storage using safeStorage
-ipcMain.handle('get-api-key', async () => {
+ipcMain.handle('has-api-key', async () => {
   try {
-    if (!safeStorage.isEncryptionAvailable()) {
-      console.warn('Secure storage not available on this system');
-      return null;
-    }
-
-    if (!fs.existsSync(credentialsPath)) {
-      return null;
-    }
-
-    const encryptedData = fs.readFileSync(credentialsPath);
-    const decrypted = safeStorage.decryptString(encryptedData);
-    const credentials = JSON.parse(decrypted);
-    return credentials.geminiApiKey || null;
+    return !!resolveApiKey();
   } catch (error) {
-    console.error('Failed to read API key from secure storage:', error);
-    return null;
+    console.error('Failed to check API key status:', error);
+    return false;
   }
 });
 
@@ -254,7 +270,11 @@ ipcMain.handle('set-api-key', async (event, apiKey) => {
       return false;
     }
 
-    const credentials = { geminiApiKey: apiKey };
+    if (!apiKey || typeof apiKey !== 'string' || !apiKey.trim()) {
+      return false;
+    }
+
+    const credentials = { geminiApiKey: apiKey.trim() };
     const encrypted = safeStorage.encryptString(JSON.stringify(credentials));
     fs.writeFileSync(credentialsPath, encrypted);
     return true;
@@ -264,8 +284,58 @@ ipcMain.handle('set-api-key', async (event, apiKey) => {
   }
 });
 
-ipcMain.handle('is-secure-storage-available', async () => {
-  return safeStorage.isEncryptionAvailable();
+ipcMain.handle('clear-api-key', async () => {
+  try {
+    if (fs.existsSync(credentialsPath)) {
+      fs.unlinkSync(credentialsPath);
+    }
+    return true;
+  } catch (error) {
+    console.error('Failed to clear API key:', error);
+    return false;
+  }
+});
+
+ipcMain.handle('generate-cards', async (event, payload) => {
+  try {
+    const apiKey = resolveApiKey();
+    if (!apiKey) {
+      throw new Error('Missing API key. Please add one in Settings.');
+    }
+
+    const prompt = typeof payload?.prompt === 'string' ? payload.prompt : '';
+    const image = typeof payload?.image === 'string' ? payload.image : null;
+    const model = resolveModel(payload?.model, image, payload?.useThinking);
+    const useThinking = !!payload?.useThinking;
+
+    return await generateFlashcardsInMain({ prompt, model, image, useThinking }, apiKey);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Gemini generation failed:', error);
+    }
+    throw new Error(message);
+  }
+});
+
+ipcMain.handle('amend-card', async (event, payload) => {
+  try {
+    const apiKey = resolveApiKey();
+    if (!apiKey) {
+      throw new Error('Missing API key. Please add one in Settings.');
+    }
+
+    const prompt = typeof payload?.prompt === 'string' ? payload.prompt : '';
+    const model = resolveModel(payload?.model, null, false);
+
+    return await amendFlashcardInMain({ prompt, model }, apiKey);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Gemini amendment failed:', error);
+    }
+    throw new Error(message);
+  }
 });
 
 app.on('window-all-closed', () => {
