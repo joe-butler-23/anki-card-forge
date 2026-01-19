@@ -98,9 +98,11 @@
             # - package.json: Needed by Electron to find the main script.
             # - electron/: Contains the Electron main process entrypoint.
             # - dist/: Contains the compiled frontend assets.
-            # - prompts/: Contains default prompts for first run.
+            # - src/prompts/: Contains default prompts for first run.
             cp package.json $out/share/anki-card-forge/
-            cp -r electron dist prompts $out/share/anki-card-forge/
+            cp -r electron dist $out/share/anki-card-forge/
+            mkdir -p $out/share/anki-card-forge/src
+            cp -r src/prompts $out/share/anki-card-forge/src/
 
             # Create the binary wrapper
             mkdir -p $out/bin
