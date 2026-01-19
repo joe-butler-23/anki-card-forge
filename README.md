@@ -152,10 +152,6 @@ Bearing in mind the warnings about the API generated content above, the app uses
 
 And of course, you always have the option to go through the code yourself. 
 
-## Contributing
-
-I have got this app to the point where it works for my purposes and I do not really see it as being in active development. I would look at any serious bugs or usability/accessibility concerns, but for big feature requests or similar I would suggest forking and trying to add them yourself. 
-
 ## License
 
 Anki Card Forge is released under the **MIT License**. See the [LICENSE](LICENSE) file for details.
