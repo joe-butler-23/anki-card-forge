@@ -4,7 +4,7 @@ import { fileURLToPath } from 'url';
 import fs from 'fs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const promptsJsonPath = path.join(__dirname, '../prompts/topics.json');
+const promptsJsonPath = path.join(__dirname, '../src/prompts/topics.json');
 const userDataPath = app.getPath('userData');
 const promptsDir = path.join(userDataPath, 'prompts');
 const customPromptsPath = path.join(promptsDir, 'prompts.json');

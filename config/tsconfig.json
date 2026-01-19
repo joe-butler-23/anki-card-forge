@@ -10,20 +10,22 @@
       "DOM.Iterable"
     ],
     "skipLibCheck": true,
-        "types": ["vite/client", "node"],
+    "types": ["vite/client", "node"],
     "moduleResolution": "bundler",
     "isolatedModules": true,
     "moduleDetection": "force",
     "allowJs": true,
     "jsx": "react-jsx",
+    "baseUrl": "../",
     "paths": {
       "@/*": [
-        "./*"
+        "./src/*"
       ]
     },
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "noEmit": true
   },
-  "exclude": ["node_modules", "result"]
+  "include": ["../src/**/*"],
+  "exclude": ["../node_modules", "../result", "../dist"]
 }

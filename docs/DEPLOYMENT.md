@@ -169,7 +169,8 @@ The app is built in `/etc/nixos/modules/core/sys-apps.nix` with:
   - `package.json` - Electron needs this to find the main script
   - `electron/` - Main process code
   - `dist/` - Built frontend assets
-  - `prompts/` - Default AI prompts
+  - `src/prompts/` - Default AI prompts
+  - `config/` - Build configuration files
 
 ## Development Tips
 
