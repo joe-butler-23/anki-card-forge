@@ -225,8 +225,10 @@ const App: React.FC = () => {
     }
   };
 
-  const handleUrlUpdate = async () => {
-    setAnkiUrl(customUrl);
+  const handleUrlUpdate = async (url?: string) => {
+    // Use provided URL or fall back to state value
+    const urlToUse = url || customUrl;
+    setAnkiUrl(urlToUse);
     await handleRetryConnection();
   };
 

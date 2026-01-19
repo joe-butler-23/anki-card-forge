@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Settings, XCircle, AlertCircle, Copy, Loader2, RefreshCw } from 'lucide-react';
 
 interface SettingsModalProps {
@@ -10,7 +10,7 @@ interface SettingsModalProps {
   geminiApiKey: string;
   setGeminiApiKey: (key: string) => void;
   isChecking: boolean;
-  onSave: () => void;
+  onSave: (url?: string) => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -23,9 +23,28 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   isChecking,
   onSave
 }) => {
+  // Local state for inputs - only save when user clicks "Save & Connect"
+  const [localApiKey, setLocalApiKey] = useState(geminiApiKey);
+  const [localUrl, setLocalUrl] = useState(customUrl);
+
+  // Sync local state when modal opens or props change
+  useEffect(() => {
+    if (isOpen) {
+      setLocalApiKey(geminiApiKey);
+      setLocalUrl(customUrl);
+    }
+  }, [isOpen, geminiApiKey, customUrl]);
+
   if (!isOpen) return null;
 
   const isHttps = window.location.protocol === 'https:';
+
+  const handleSave = async () => {
+    // Save API key and URL before connecting
+    await setGeminiApiKey(localApiKey);
+    setCustomUrl(localUrl);
+    onSave(localUrl);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
@@ -43,10 +62,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <div>
             <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block">Gemini API Key</label>
             <div className="flex gap-2">
-              <input 
-                type="password" 
-                value={geminiApiKey}
-                onChange={(e) => setGeminiApiKey(e.target.value)}
+              <input
+                type="password"
+                value={localApiKey}
+                onChange={(e) => setLocalApiKey(e.target.value)}
                 className="flex-grow px-3 py-2.5 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                 placeholder="Enter your Gemini API Key"
               />
@@ -55,10 +74,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <div>
             <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block">AnkiConnect URL</label>
             <div className="flex gap-2">
-              <input 
-                type="text" 
-                value={customUrl}
-                onChange={(e) => setCustomUrl(e.target.value)}
+              <input
+                type="text"
+                value={localUrl}
+                onChange={(e) => setLocalUrl(e.target.value)}
                 className="flex-grow px-3 py-2.5 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                 placeholder="http://127.0.0.1:8765"
               />
@@ -102,8 +121,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               >
                 Cancel
               </button>
-              <button 
-                onClick={onSave}
+              <button
+                onClick={handleSave}
                 disabled={isChecking}
                 className="flex-[2] py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 shadow-md shadow-indigo-200 dark:shadow-indigo-900/30 flex justify-center items-center gap-2"
               >
