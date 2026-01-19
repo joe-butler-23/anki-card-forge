@@ -33,3 +33,4 @@ dist-ssr
 .gemini/
 gha-creds-*.json
 DEVELOPMENT.md
+scripts/update-system.sh
