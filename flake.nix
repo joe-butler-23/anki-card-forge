@@ -77,7 +77,7 @@
           version = "1.0.0";
           src = ./.;
 
-          npmDepsHash = "sha256-rOXt+X6P3JMoT2ppOEuCDTt/3t5xl1NTXZz4hESxAco=";
+          npmDepsHash = "sha256-sfy6UGZH+YMUYyrkx8k6HRU9Sgu2Z6gzB4kgnT2Nq0c=";
 
           nativeBuildInputs = [ pkgs.pkg-config pkgs.makeWrapper ];
           buildInputs = [ pkgs.vips ];
@@ -99,7 +99,10 @@
             # - electron/: Contains the Electron main process entrypoint.
             # - dist/: Contains the compiled frontend assets.
             # - src/prompts/: Contains default prompts for first run.
+            # - node_modules/: Runtime dependencies for the Electron main process.
+            npm prune --omit=dev
             cp package.json $out/share/anki-card-forge/
+            cp -r node_modules $out/share/anki-card-forge/
             cp -r electron dist $out/share/anki-card-forge/
             mkdir -p $out/share/anki-card-forge/src
             cp -r src/prompts $out/share/anki-card-forge/src/
