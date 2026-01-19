@@ -7,6 +7,9 @@ export default defineConfig(({ mode }) => {
     root: './src',
     base: './',
     plugins: [react()],
+    css: {
+      postcss: './config/postcss.config.js',
+    },
     define: {
       'process.env.API_KEY': JSON.stringify(env.API_KEY || process.env.API_KEY),
     },
