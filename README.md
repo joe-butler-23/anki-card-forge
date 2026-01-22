@@ -15,7 +15,7 @@ Anki Card Forge is built to produce high-quality flashcards and then sync them t
 Where I think this app delivers real value over just asking an AI to generate loads of cards for you is: it syncs seamelssly via AnkiConnect, and (even better) it gives you a review pane so you can approve/reject/edit suggested cards and filter out any poor suggestions. 
 
 | Feature | Description |
-| :--- | :--- | :--- |
+| :--- | :--- |
 | **AI-Powered Generation** | Uses Gemini API to generate structured flashcards from unstructured text notes. |
 | **Topic Optimization** | Includes specialized (handcrafted) prompts for General, Math/Science (with LaTeX guidance), Vocabulary, and Programming. |
 | **Multimodal Support** | Ability to upload images/screenshots alongside notes for card generation. | 
