@@ -2,6 +2,10 @@
 <img width="60%"alt="GHBanner" src="assets/anki-card-forge-banner.png" />
 </div>
 
+<div align="center">
+<img width="60%"alt="GHgid" src="assets/yaaaa.gif" />
+</div>
+
 **Anki Card Forge** uses AI to transform notes/study materials/random screenshots into high-quality, structured Anki flashcards. If you are not familiar with Anki, it is a spaced repetition tool that helps you remember things (there are lots of good resources out to explain this better - see https://augmentingcognition.com/ltm.html). 
 
 Anki is a much-used and much-loved app and there are lots of different views regarding the best or most effective way to use it. For me, Anki has always been a tool for _remembering_ things rather than learning them (if I don't understand a topic, then reviewing lots of flashcards on it is unlikely to be helpful). And `Anki Card Forge` is simply a way of turning things you've learned into nicely formatted flashcards with minimal effort. 
