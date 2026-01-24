@@ -3,7 +3,7 @@
 </div>
 
 <div align="center">
-<img width="60%"alt="GHgid" src="assets/yaaaa.gif" />
+<img width="100%"alt="GHgid" src="assets/yaaaa.gif" />
 </div>
 
 **Anki Card Forge** uses AI to transform notes/study materials/random screenshots into high-quality, structured Anki flashcards. If you are not familiar with Anki, it is a spaced repetition tool that helps you remember things (there are lots of good resources out to explain this better - see https://augmentingcognition.com/ltm.html). 
