@@ -3,9 +3,9 @@
 </div>
 
 
-**Anki Card Forge** uses AI to transform notes/study materials/random screenshots into high-quality, structured Anki flashcards. If you are not familiar with Anki, it is a spaced repetition tool that helps you remember things (there are lots of good resources out to explain this better - see https://augmentingcognition.com/ltm.html). 
+**Anki Card Forge** uses AI to transform notes/study materials/random screenshots into high-quality, structured Anki flashcards. It provides a simple and opinionated process for creating flashcards, with a mandatory human review step before anything gets synced to Anki
 
-Anki is a much-used and much-loved app and there are lots of different views regarding the best or most effective way to use it. For me, Anki has always been a tool for _remembering_ things rather than learning them (if I don't understand a topic, then reviewing lots of flashcards on it is unlikely to be helpful). And `Anki Card Forge` is simply a way of turning things you've learned into nicely formatted flashcards with minimal effort. 
+Anki is a much-used and much-loved app and there are lots of different views regarding the best or most effective way to use it. For me, Anki has always been a tool for _remembering_ things rather than learning them (if I don't understand a topic, then reviewing lots of cards on it won't be helpful). And **Anki Card Forge** is simply a way of turning things you've learned into nicely formatted flashcards with minimal effort. 
 
 To be very clear up front, this app is entirely AI-generated (down to the terrible name it came up with that I couldn't be bothered to change). The initial draft was done with Google AI Studio (which is why it's set up to work with Gemini) and was then refined a bit with Claude Code. I have been using this myself for a couple months now without any real issues. In general, I have found that Google's AI Studio does a decent job, especially if you then run the app through a couple code reviews. But if you hate AI slop, or if you have concerns with AI-generated code etc. then this is obviously not the app for you!
 
@@ -17,9 +17,7 @@ To be very clear up front, this app is entirely AI-generated (down to the terrib
 
 ## Features
 
-Anki Card Forge is built to produce high-quality flashcards and then sync them to Anki using the AnkiConnect API. It makes use of lots of custom prompting (which you can edit), which I have refined over the last couple years of trying to get AI to produce decent flashcards. It incorporates lessons learned from lots of very clever people (Michael Nielsen, already linked above, is an excellent resource on spaced repetition, this article https://disputant.medium.com/how-to-make-better-anki-flashcards-principles-for-high-yield-questions-d58cc7244a7c is also very good). Parts of these prompts will be tailored specifically to me (i.e. regarding formatting), but I think some of the included principles are useful for everyone (i.e. make flashcards atomic, avoid yes/no answers). But it is up to you if you want to delete them entirely and do your own thing. 
-
-Where I think this app delivers real value over just asking an AI to generate loads of cards for you is: it syncs seamelssly via AnkiConnect, and (even better) it gives you a review pane so you can approve/reject/edit suggested cards and filter out any poor suggestions. 
+Anki Card Forge is built to produce high-quality flashcards and then sync them to Anki using the AnkiConnect API. Where I think this app delivers real value over just asking an AI to generate loads of cards for you is: it syncs seamelssly via AnkiConnect, and (even better) it gives you a review pane so you can approve/reject/edit suggested cards and filter out any poor suggestions. 
 
 | Feature | Description |
 | :--- | :--- |
@@ -30,7 +28,9 @@ Where I think this app delivers real value over just asking an AI to generate lo
 | **Direct Anki Sync** | Instantly sends approved cards to your running Anki instance via AnkiConnect. |
 | **Review & Edit Workflow** | Provides a dedicated interface to review, edit, and approve each generated card before syncing. |
 
-However, be warned that the card generation process is _slooow_ (I sped this up in the demo video to make it an acceptable length). I normally have it open to the side whilst I'm working so I can click generate, carry on studying, come back to it to review, and repeat, and that seems to work well. 
+It includes lots of custom prompts, which I have refined over the last couple years of trying to get AI to produce decent flashcards. It incorporates lessons learned from lots of very clever people (Michael Nielsen is a great resource for this, see his blog at augmentingcognition.com). Parts of these prompts will be tailored specifically to me (i.e. regarding formatting), but I think some of the included principles are useful for everyone (i.e. make flashcards atomic, avoid yes/no answers). But it is up to you if you want to delete them entirely and use your own prompts.
+
+One additional warning: the card generation process is _slooow._ I sped this up in the demo video to make it an acceptable length, but it can take forever sometimes. I normally have it open to the side whilst I'm working so I can click generate, carry on studying, come back to it to review, and repeat, and that works well for me and stops it being an annoyance. 
 
 ## Getting Started
 
