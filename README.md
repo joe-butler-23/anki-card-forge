@@ -10,7 +10,9 @@ Anki is a much-used and much-loved app and there are lots of different views reg
 To be very clear up front, this app is entirely AI-generated (down to the terrible name it came up with that I couldn't be bothered to change). The initial draft was done with Google AI Studio (which is why it's set up to work with Gemini) and was then refined a bit with Claude Code. I have been using this myself for a couple months now without any real issues. In general, I have found that Google's AI Studio does a decent job, especially if you then run the app through a couple code reviews. But if you hate AI slop, or if you have concerns with AI-generated code etc. then this is obviously not the app for you!
 
 <div align="center">
+  
 ![Demo](assets/yaaaa.gif)
+
 </div>
 
 ## Features
