@@ -11,7 +11,7 @@ To be very clear up front, this app is entirely AI-generated (down to the terrib
 
 <div align="center">
   
-![Demo](assets/yaaaa.gif)
+![Demo](assets/acf-yaaaa.gif)
 
 </div>
 
