@@ -1,7 +1,7 @@
 {
   "name": "anki-card-forge",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Anki Card Forge - AI-powered flashcard generation application",
   "author": "Joe Butler <joe@example.com>",
   "type": "module",
