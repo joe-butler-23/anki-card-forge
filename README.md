@@ -58,7 +58,7 @@ The easiest way to get started is by downloading the pre-built application for y
 | **macOS** | `.dmg` | Download, open the disk image, and drag the application to your Applications folder. |
 | **Linux** | `.AppImage` | Download, make the file executable, and run it. |
 
-**macOS Note**: Builds are currently unsigned. On first launch, you'll see a Gatekeeper warning. Right-click the app and select "Open" to bypass (one-time step). See [docs/RELEASING.md](docs/RELEASING.md) for details.
+**macOS Note**: Builds are currently unsigned. I have zero experience with mac, and no access to one to test so these are very generic instructions only. Though I understand with unsigned apps, on first launch, you'll see a Gatekeeper warning. Right-click the app and select "Open" to bypass (one-time step). See [docs/RELEASING.md](docs/RELEASING.md) for more details.
 
 #### Option 2: Build from Source
 
