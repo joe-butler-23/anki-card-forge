@@ -49,15 +49,18 @@
       "src/prompts/**/*"
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "build-assets/icon.ico"
     },
     "mac": {
       "target": "dmg",
-      "category": "public.app-category.education"
+      "category": "public.app-category.education",
+      "icon": "build-assets/icon.icns"
     },
     "linux": {
       "target": "AppImage",
-      "category": "Education"
+      "category": "Education",
+      "icon": "build-assets/icon.png"
     }
   }
 }
