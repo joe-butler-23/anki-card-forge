@@ -322,7 +322,9 @@ const App: React.FC = () => {
     setLoadingMessage("Forging cards into Anki...");
     try {
       const addedIds = await addNotesToAnki(generatedCards, selectedDeck);
-      console.log(`Added ${addedIds.length} cards`);
+      if (import.meta.env.DEV) {
+        console.log(`Added ${addedIds.length} cards`);
+      }
       setStep(AppStep.Done);
     } catch (e: any) {
       setError(e.message || "Failed to sync with Anki. Is the app open?");
