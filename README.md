@@ -1,5 +1,8 @@
 <div align="center">
 <img width="60%"alt="GHBanner" src="assets/anki-card-forge-banner.png" />
+
+[![Release](https://github.com/joe-butler-23/anki-card-forge/actions/workflows/release.yml/badge.svg)](https://github.com/joe-butler-23/anki-card-forge/actions/workflows/release.yml)
+
 </div>
 
 
@@ -54,6 +57,8 @@ The easiest way to get started is by downloading the pre-built application for y
 | **Windows** | `.exe` | Download and run the installer. |
 | **macOS** | `.dmg` | Download, open the disk image, and drag the application to your Applications folder. |
 | **Linux** | `.AppImage` | Download, make the file executable, and run it. |
+
+**macOS Note**: Builds are currently unsigned. On first launch, you'll see a Gatekeeper warning. Right-click the app and select "Open" to bypass (one-time step). See [docs/RELEASING.md](docs/RELEASING.md) for details.
 
 #### Option 2: Build from Source
 
