@@ -13,6 +13,7 @@ const backupsPath = path.join(promptsDir, 'backups');
 
 // Secure storage for API keys
 const credentialsPath = path.join(userDataPath, 'credentials.enc');
+const fallbackCredentialsPath = path.join(userDataPath, 'credentials.json');
 const defaultGeminiModel = 'gemini-3-pro-preview';
 
 const normalizeTopicKey = (topic) => {
@@ -70,17 +71,55 @@ const getTopicBackupDir = (topic) => {
 
 const getEnvApiKey = () => process.env.GEMINI_API_KEY || process.env.API_KEY || null;
 
+const readFallbackApiKey = () => {
+  if (!fs.existsSync(fallbackCredentialsPath)) {
+    return null;
+  }
+
+  try {
+    const raw = fs.readFileSync(fallbackCredentialsPath, 'utf8');
+    const credentials = JSON.parse(raw);
+    if (typeof credentials?.geminiApiKey !== 'string') {
+      return null;
+    }
+    const trimmed = credentials.geminiApiKey.trim();
+    return trimmed || null;
+  } catch (error) {
+    console.error('Failed to read fallback API key storage:', error);
+    return null;
+  }
+};
+
+const writeFallbackApiKey = (apiKey) => {
+  fs.writeFileSync(
+    fallbackCredentialsPath,
+    JSON.stringify({ geminiApiKey: apiKey }, null, 2),
+    { mode: 0o600 }
+  );
+
+  // Enforce user-only permissions when supported by the platform.
+  try {
+    fs.chmodSync(fallbackCredentialsPath, 0o600);
+  } catch (error) {
+    if (process.platform !== 'win32') {
+      console.warn('Unable to set strict permissions on fallback credentials file:', error);
+    }
+  }
+};
+
 const readStoredApiKey = () => {
-  if (!safeStorage.isEncryptionAvailable()) {
-    return null;
+  if (safeStorage.isEncryptionAvailable() && fs.existsSync(credentialsPath)) {
+    try {
+      const encryptedData = fs.readFileSync(credentialsPath);
+      const decrypted = safeStorage.decryptString(encryptedData);
+      const credentials = JSON.parse(decrypted);
+      return credentials.geminiApiKey || null;
+    } catch (error) {
+      console.error('Failed to read encrypted API key storage:', error);
+    }
   }
-  if (!fs.existsSync(credentialsPath)) {
-    return null;
-  }
-  const encryptedData = fs.readFileSync(credentialsPath);
-  const decrypted = safeStorage.decryptString(encryptedData);
-  const credentials = JSON.parse(decrypted);
-  return credentials.geminiApiKey || null;
+
+  return readFallbackApiKey();
 };
 
 const resolveApiKey = () => getEnvApiKey() || readStoredApiKey();
@@ -265,18 +304,29 @@ ipcMain.handle('has-api-key', async () => {
 
 ipcMain.handle('set-api-key', async (event, apiKey) => {
   try {
-    if (!safeStorage.isEncryptionAvailable()) {
-      console.warn('Secure storage not available on this system');
-      return false;
-    }
-
     if (!apiKey || typeof apiKey !== 'string' || !apiKey.trim()) {
       return false;
     }
 
-    const credentials = { geminiApiKey: apiKey.trim() };
-    const encrypted = safeStorage.encryptString(JSON.stringify(credentials));
-    fs.writeFileSync(credentialsPath, encrypted);
+    const trimmedApiKey = apiKey.trim();
+
+    if (safeStorage.isEncryptionAvailable()) {
+      try {
+        const credentials = { geminiApiKey: trimmedApiKey };
+        const encrypted = safeStorage.encryptString(JSON.stringify(credentials));
+        fs.writeFileSync(credentialsPath, encrypted);
+        if (fs.existsSync(fallbackCredentialsPath)) {
+          fs.unlinkSync(fallbackCredentialsPath);
+        }
+        return true;
+      } catch (error) {
+        console.warn('Secure storage failed, using fallback file storage:', error);
+      }
+    } else {
+      console.warn('Secure storage not available on this system, using fallback file storage');
+    }
+
+    writeFallbackApiKey(trimmedApiKey);
     return true;
   } catch (error) {
     console.error('Failed to save API key to secure storage:', error);
@@ -288,6 +338,9 @@ ipcMain.handle('clear-api-key', async () => {
   try {
     if (fs.existsSync(credentialsPath)) {
       fs.unlinkSync(credentialsPath);
+    }
+    if (fs.existsSync(fallbackCredentialsPath)) {
+      fs.unlinkSync(fallbackCredentialsPath);
     }
     return true;
   } catch (error) {
