@@ -1,365 +1,379 @@
-
-import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  AppStep, 
-  Topic, 
-  Flashcard 
-} from './types';
-import { 
-  getDeckNames, 
-  checkConnection, 
-  pingAnki,
-  addNotesToAnki,
-  setAnkiUrl 
-} from './services/ankiConnectService';
-import {
-  generateFlashcards,
-  amendFlashcard,
-  GeminiAPIError,
-  JSONParseError,
-  AIResponseValidationError
-} from './services/geminiService';
+import React, { useEffect, useState } from 'react';
 import { AlertCircle } from 'lucide-react';
-
-// Components
+import { ANKI_CONNECT_URL_PRIMARY, DEFAULT_ANKI_DECK, DEFAULT_GEMINI_MODEL } from './constants';
+import { DoneStep } from './components/steps/DoneStep';
+import { FinalizeStep } from './components/steps/FinalizeStep';
 import { Header } from './components/Header';
-import { SettingsModal } from './components/SettingsModal';
-import { SetupStep } from './components/steps/SetupStep';
 import { LoadingStep } from './components/steps/LoadingStep';
 import { ReviewStep } from './components/steps/ReviewStep';
-import { FinalizeStep } from './components/steps/FinalizeStep';
-import { DoneStep } from './components/steps/DoneStep';
+import { SettingsModal } from './components/SettingsModal';
+import { SetupStep } from './components/steps/SetupStep';
+import { addNotesToAnki, checkConnection, getDeckNames, pingAnki, setAnkiUrl } from './services/ankiConnectService';
+import { AIResponseValidationError, amendFlashcard, generateFlashcards, GeminiAPIError, JSONParseError } from './services/geminiService';
+import { AppStep, Flashcard, Topic } from './types';
 
-const App: React.FC = () => {
-  // --- State ---
+function getErrorMessage(error: unknown, fallbackMessage: string): string {
+  return error instanceof Error ? error.message : fallbackMessage;
+}
+
+function getGeminiErrorMessage(
+  error: unknown,
+  options: {
+    validationPrefix: string;
+    invalidJsonMessage: string;
+    fallbackMessage: string;
+  },
+): string {
+  if (error instanceof AIResponseValidationError) {
+    return `${options.validationPrefix}:\n${error.details.join('\n')}`;
+  }
+
+  if (error instanceof JSONParseError) {
+    return options.invalidJsonMessage;
+  }
+
+  if (error instanceof GeminiAPIError || error instanceof Error) {
+    return error.message;
+  }
+
+  return options.fallbackMessage;
+}
+
+function updateCardAtIndex(
+  cards: Flashcard[],
+  index: number,
+  updater: (card: Flashcard) => Flashcard,
+): Flashcard[] {
+  return cards.map((card, cardIndex) => (cardIndex === index ? updater(card) : card));
+}
+
+function getLoadingMessage(useThinking: boolean): string {
+  return useThinking ? 'Deep thinking in progress...' : 'Consulting the Neural Forge...';
+}
+
+function App(): React.JSX.Element {
   const [step, setStep] = useState<AppStep>(AppStep.Setup);
   const [decks, setDecks] = useState<string[]>([]);
-  const [isConnected, setIsConnected] = useState<boolean>(false);
-  
-  // Theme
-  const [darkMode, setDarkMode] = useState<boolean>(false);
-
-  // Generation Inputs
-  const [notes, setNotes] = useState<string>('');
-  const [selectedDeck, setSelectedDeck] = useState<string>('Default');
+  const [isConnected, setIsConnected] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
+  const [notes, setNotes] = useState('');
+  const [selectedDeck, setSelectedDeck] = useState(DEFAULT_ANKI_DECK);
   const [selectedTopic, setSelectedTopic] = useState<Topic>(Topic.General);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [useThinking, setUseThinking] = useState<boolean>(false);
-
-  // Connection Settings
-  const [showSettings, setShowSettings] = useState<boolean>(false);
-  const [customUrl, setCustomUrlState] = useState<string>('http://127.0.0.1:8765');
-  const [hasGeminiApiKey, setHasGeminiApiKey] = useState<boolean>(false);
-  const [isCheckingConnection, setIsCheckingConnection] = useState<boolean>(false);
-  const [isCheckingApiKey, setIsCheckingApiKey] = useState<boolean>(true);
-
-  // Card Management
+  const [useThinking, setUseThinking] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [customUrl, setCustomUrlState] = useState(ANKI_CONNECT_URL_PRIMARY);
+  const [hasGeminiApiKey, setHasGeminiApiKey] = useState(false);
+  const [isCheckingConnection, setIsCheckingConnection] = useState(false);
+  const [isCheckingApiKey, setIsCheckingApiKey] = useState(true);
   const [generatedCards, setGeneratedCards] = useState<Flashcard[]>([]);
-  const [currentCardIndex, setCurrentCardIndex] = useState<number>(0);
-  
-  // Processing/Loading
-  const [loadingMessage, setLoadingMessage] = useState<string>('');
+  const [currentCardIndex, setCurrentCardIndex] = useState(0);
+  const [loadingMessage, setLoadingMessage] = useState('');
   const [error, setError] = useState<string | null>(null);
-  
-  // Editing/Amending
-  const [isEditing, setIsEditing] = useState<boolean>(false);
-  const [amendInstruction, setAmendInstruction] = useState<string>('');
-  const [isAmending, setIsAmending] = useState<boolean>(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [amendInstruction, setAmendInstruction] = useState('');
+  const [isAmending, setIsAmending] = useState(false);
 
-  // --- Effects ---
-
-  // Dark Mode Effect
   useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    document.documentElement.classList.toggle('dark', darkMode);
   }, [darkMode]);
 
-  // Ctrl+wheel zoom via Electron IPC
   useEffect(() => {
-    const handleWheel = (event: WheelEvent) => {
-      if (!event.ctrlKey) return;
-      event.preventDefault();
-      const electronAPI = (window as any).electronAPI;
-      if (electronAPI) {
-        if (event.deltaY < 0) {
-          electronAPI.zoomIn();
-        } else {
-          electronAPI.zoomOut();
-        }
+    function handleWheel(event: WheelEvent): void {
+      if (!event.ctrlKey) {
+        return;
       }
-    };
+
+      event.preventDefault();
+
+      if (!window.electronAPI) {
+        return;
+      }
+
+      if (event.deltaY < 0) {
+        void window.electronAPI.zoomIn();
+      } else {
+        void window.electronAPI.zoomOut();
+      }
+    }
+
     window.addEventListener('wheel', handleWheel, { passive: false });
+
     return () => window.removeEventListener('wheel', handleWheel);
   }, []);
 
-  // Check for stored API key in secure storage or environment
   useEffect(() => {
-    const checkApiKey = async () => {
-      const electronAPI = (window as any).electronAPI;
-
-      if (electronAPI?.hasApiKey) {
-        try {
-          const hasKey = await electronAPI.hasApiKey();
-          setHasGeminiApiKey(hasKey);
-        } catch (error) {
-          console.error('Failed to check API key:', error);
-          setHasGeminiApiKey(false);
-        }
+    async function checkApiKey(): Promise<void> {
+      try {
+        const hasApiKey = await window.electronAPI?.hasApiKey?.();
+        setHasGeminiApiKey(Boolean(hasApiKey));
+      } catch (error) {
+        console.error('Failed to check API key:', error);
+        setHasGeminiApiKey(false);
+      } finally {
+        setIsCheckingApiKey(false);
       }
+    }
 
-      setIsCheckingApiKey(false);
-    };
-
-    checkApiKey();
+    void checkApiKey();
   }, []);
 
-  const saveGeminiApiKey = async (key: string) => {
-    const electronAPI = (window as any).electronAPI;
-    if (electronAPI?.setApiKey) {
-      try {
-        const saved = await electronAPI.setApiKey(key);
-        if (saved) {
-          setHasGeminiApiKey(true);
-          return true;
-        }
-      } catch (error) {
-        console.error('Failed to save API key to secure storage:', error);
+  async function saveGeminiApiKey(key: string): Promise<boolean> {
+    if (!window.electronAPI?.setApiKey) {
+      return false;
+    }
+
+    try {
+      const saved = await window.electronAPI.setApiKey(key);
+
+      if (saved) {
+        setHasGeminiApiKey(true);
+        return true;
       }
+    } catch (error) {
+      console.error('Failed to save API key to secure storage:', error);
     }
 
     return false;
-  };
+  }
 
-  const clearGeminiApiKey = async () => {
-    const electronAPI = (window as any).electronAPI;
-    if (electronAPI?.clearApiKey) {
-      try {
-        const cleared = await electronAPI.clearApiKey();
-        if (cleared) {
-          setHasGeminiApiKey(false);
-        }
-      } catch (error) {
-        console.error('Failed to clear API key:', error);
-      }
+  async function clearGeminiApiKey(): Promise<void> {
+    if (!window.electronAPI?.clearApiKey) {
+      return;
     }
-  };
-  
-  // Initial silent check
-  const initialCheck = useCallback(async () => {
-    setIsCheckingConnection(true);
+
     try {
-      const connected = await checkConnection();
-      setIsConnected(connected);
-      if (connected) {
-        const deckList = await getDeckNames();
-        setDecks(deckList);
-        if (deckList.length > 0 && selectedDeck === 'Default') {
-          setSelectedDeck(deckList[0]);
-        }
-        setError(null);
+      const cleared = await window.electronAPI.clearApiKey();
+
+      if (cleared) {
+        setHasGeminiApiKey(false);
       }
-    } catch (e) {
-      // Silent fail on initial load
+    } catch (error) {
+      console.error('Failed to clear API key:', error);
+    }
+  }
+
+  async function refreshConnection(showErrors: boolean): Promise<void> {
+    setIsCheckingConnection(true);
+
+    if (showErrors) {
+      setError(null);
+    }
+
+    try {
+      const connected = showErrors ? true : await checkConnection();
+
+      if (!connected) {
+        setIsConnected(false);
+        return;
+      }
+
+      if (showErrors) {
+        await pingAnki();
+      }
+
+      const deckList = await getDeckNames();
+
+      setIsConnected(true);
+      setDecks(deckList);
+      setSelectedDeck((currentDeck) => {
+        if (deckList.length === 0) {
+          return currentDeck;
+        }
+
+        if (!showErrors && currentDeck !== DEFAULT_ANKI_DECK) {
+          return currentDeck;
+        }
+
+        return deckList[0];
+      });
+      setError(null);
+
+      if (showErrors) {
+        setShowSettings(false);
+      }
+    } catch (error) {
       setIsConnected(false);
+
+      if (showErrors) {
+        setError(getErrorMessage(error, 'Failed to connect to Anki.'));
+      }
     } finally {
       setIsCheckingConnection(false);
     }
-  }, [selectedDeck]);
+  }
 
   useEffect(() => {
-    initialCheck();
+    void refreshConnection(false);
   }, []);
 
-  // --- Handlers ---
+  async function handleUrlUpdate(url?: string): Promise<void> {
+    const urlToUse = url ?? customUrl;
 
-  const handleRetryConnection = async () => {
-    setIsCheckingConnection(true);
-    setError(null);
-    try {
-      await pingAnki(); // This will throw if connection fails, revealing the error
-      setIsConnected(true);
-      const deckList = await getDeckNames();
-      setDecks(deckList);
-      if (deckList.length > 0) setSelectedDeck(deckList[0]);
-      setShowSettings(false); // Close settings on success
-    } catch (e: any) {
-      setIsConnected(false);
-      setError(e.message || "Failed to connect to Anki.");
-    } finally {
-      setIsCheckingConnection(false);
-    }
-  };
-
-  const handleUrlUpdate = async (url?: string) => {
-    // Use provided URL or fall back to state value
-    const urlToUse = url || customUrl;
     try {
       setAnkiUrl(urlToUse);
-      await handleRetryConnection();
-    } catch (e: any) {
-      setError(e?.message || 'Invalid AnkiConnect URL.');
+      await refreshConnection(true);
+    } catch (error) {
+      setError(getErrorMessage(error, 'Invalid AnkiConnect URL.'));
     }
-  };
+  }
 
-  const handleGenerate = async () => {
+  async function handleGenerate(): Promise<void> {
     if (!notes.trim() && !selectedImage) {
-      setError("Please enter notes or upload an image.");
+      setError('Please enter notes or upload an image.');
       return;
     }
+
     if (!hasGeminiApiKey && !isCheckingApiKey) {
-      setError("Please add your Gemini API key in Settings before generating.");
+      setError('Please add your Gemini API key in Settings before generating.');
       return;
     }
+
     setError(null);
     setStep(AppStep.Generating);
-    
-    if (useThinking) {
-        setLoadingMessage("Deep thinking in progress...");
-    } else {
-        setLoadingMessage("Consulting the Neural Forge...");
-    }
+    setLoadingMessage(getLoadingMessage(useThinking));
 
     try {
-      const cards = await generateFlashcards(notes, selectedTopic, 'gemini-3-pro-preview', selectedImage, useThinking);
-      
+      const cards = await generateFlashcards(notes, selectedTopic, DEFAULT_GEMINI_MODEL, selectedImage, useThinking);
+
       if (cards.length === 0) {
-        setError("AI returned no cards. Try adding more detail to your notes.");
+        setError('AI returned no cards. Try adding more detail to your notes.');
         setStep(AppStep.Setup);
         return;
       }
+
       setGeneratedCards(cards);
       setCurrentCardIndex(0);
       setStep(AppStep.Reviewing);
-    } catch (e) {
-      console.error(e);
-
-      // Provide specific error messages based on error type
-      let errorMessage = 'Generation failed. Please try again.';
-
-      if (e instanceof AIResponseValidationError) {
-        errorMessage = `AI response validation failed:\n${e.details.join('\n')}`;
-      } else if (e instanceof JSONParseError) {
-        errorMessage = 'AI returned an invalid response format. Please try again.';
-      } else if (e instanceof GeminiAPIError) {
-        errorMessage = e.message;
-      } else if (e instanceof Error) {
-        errorMessage = e.message;
-      }
-
-      setError(errorMessage);
+    } catch (error) {
+      console.error(error);
+      setError(
+        getGeminiErrorMessage(error, {
+          validationPrefix: 'AI response validation failed',
+          invalidJsonMessage: 'AI returned an invalid response format. Please try again.',
+          fallbackMessage: 'Generation failed. Please try again.',
+        }),
+      );
       setStep(AppStep.Setup);
     }
-  };
+  }
 
-  const handleCardAction = (action: 'accept' | 'reject') => {
-    if (isEditing) setIsEditing(false); // Close edit mode if open
+  function handleCardAction(action: 'accept' | 'reject'): void {
+    if (isEditing) {
+      setIsEditing(false);
+    }
 
     if (action === 'reject') {
-      const updated = [...generatedCards];
-      updated[currentCardIndex].isDeleted = true;
-      setGeneratedCards(updated);
+      setGeneratedCards((cards) =>
+        updateCardAtIndex(cards, currentCardIndex, (card) => ({
+          ...card,
+          isDeleted: true,
+        })),
+      );
     }
-    
+
     if (currentCardIndex < generatedCards.length - 1) {
-      setCurrentCardIndex(prev => prev + 1);
+      setCurrentCardIndex((index) => index + 1);
     } else {
       setStep(AppStep.Finalizing);
     }
-  };
+  }
 
-  const handleAmend = async () => {
-    if (!amendInstruction.trim()) return;
+  async function handleAmend(): Promise<void> {
+    if (!amendInstruction.trim()) {
+      return;
+    }
+
+    const currentCard = generatedCards[currentCardIndex];
+
+    if (!currentCard) {
+      return;
+    }
+
     setIsAmending(true);
+
     try {
-      const currentCard = generatedCards[currentCardIndex];
-      const newCard = await amendFlashcard(currentCard, amendInstruction, selectedTopic, 'gemini-3-pro-preview');
-      
-      const updated = [...generatedCards];
-      updated[currentCardIndex] = newCard;
-      setGeneratedCards(updated);
-      
+      const amendedCard = await amendFlashcard(currentCard, amendInstruction, selectedTopic, DEFAULT_GEMINI_MODEL);
+
+      setGeneratedCards((cards) => updateCardAtIndex(cards, currentCardIndex, () => amendedCard));
       setAmendInstruction('');
-    } catch (e) {
-      console.error(e);
-
-      let errorMessage = 'Failed to amend card.';
-
-      if (e instanceof AIResponseValidationError) {
-        errorMessage = `Card amendment validation failed:\n${e.details.join('\n')}`;
-      } else if (e instanceof JSONParseError) {
-        errorMessage = 'AI returned an invalid response. Please try again.';
-      } else if (e instanceof GeminiAPIError) {
-        errorMessage = e.message;
-      } else if (e instanceof Error) {
-        errorMessage = e.message;
-      }
-
-      setError(errorMessage);
+    } catch (error) {
+      console.error(error);
+      setError(
+        getGeminiErrorMessage(error, {
+          validationPrefix: 'Card amendment validation failed',
+          invalidJsonMessage: 'AI returned an invalid response. Please try again.',
+          fallbackMessage: 'Failed to amend card.',
+        }),
+      );
     } finally {
       setIsAmending(false);
     }
-  };
+  }
 
-  const handleManualEdit = (field: keyof Flashcard, value: string) => {
-    const updated = [...generatedCards];
-    updated[currentCardIndex] = {
-      ...updated[currentCardIndex],
-      [field]: value
-    };
-    setGeneratedCards(updated);
-  };
+  function handleManualEdit(field: keyof Flashcard, value: string): void {
+    setGeneratedCards((cards) =>
+      updateCardAtIndex(cards, currentCardIndex, (card) => ({
+        ...card,
+        [field]: value,
+      })),
+    );
+  }
 
-  const handleSendToAnki = async () => {
+  async function handleSendToAnki(): Promise<void> {
     if (!isConnected) {
-        setError("Anki is not connected. Please connect via Settings or download the JSON.");
-        return;
+      setError('Anki is not connected. Please connect via Settings or download the JSON.');
+      return;
     }
 
     setStep(AppStep.Sending);
-    setLoadingMessage("Forging cards into Anki...");
+    setLoadingMessage('Forging cards into Anki...');
+
     try {
       const addedIds = await addNotesToAnki(generatedCards, selectedDeck);
+
       if (import.meta.env.DEV) {
         console.log(`Added ${addedIds.length} cards`);
       }
+
       setStep(AppStep.Done);
-    } catch (e: any) {
-      setError(e.message || "Failed to sync with Anki. Is the app open?");
+    } catch (error) {
+      setError(getErrorMessage(error, 'Failed to sync with Anki. Is the app open?'));
       setStep(AppStep.Finalizing);
     }
-  };
+  }
 
-  const handleDownloadJson = () => {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(generatedCards, null, 2));
+  function handleDownloadJson(): void {
+    const dataStr = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(generatedCards, null, 2))}`;
     const anchor = document.createElement('a');
+
     anchor.href = dataStr;
-    anchor.download = `anki_forge_export_${new Date().toISOString().slice(0,10)}.json`;
+    anchor.download = `anki_forge_export_${new Date().toISOString().slice(0, 10)}.json`;
+
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
-  };
+  }
 
-  const handleReset = () => {
+  function handleReset(): void {
     setNotes('');
     setSelectedImage(null);
     setGeneratedCards([]);
     setStep(AppStep.Setup);
     setError(null);
-  };
+  }
 
-  const handleGoHome = () => {
-    if (step === AppStep.Generating || step === AppStep.Sending) return;
+  function handleGoHome(): void {
+    if (step === AppStep.Generating || step === AppStep.Sending) {
+      return;
+    }
+
     setStep(AppStep.Setup);
-  };
-
-  // --- Render ---
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-12 font-sans transition-colors duration-300">
-      <SettingsModal 
+      <SettingsModal
         isOpen={showSettings}
         onClose={() => setShowSettings(false)}
         customUrl={customUrl}
@@ -371,8 +385,8 @@ const App: React.FC = () => {
         isChecking={isCheckingConnection}
         onSave={handleUrlUpdate}
       />
-      
-      <Header 
+
+      <Header
         step={step}
         darkMode={darkMode}
         setDarkMode={setDarkMode}
@@ -380,18 +394,20 @@ const App: React.FC = () => {
         onGoHome={handleGoHome}
         onOpenSettings={() => setShowSettings(true)}
       />
-      
+
       <main className="container mx-auto px-4">
-        {error && (
+        {error ? (
           <div className="max-w-2xl mx-auto mb-6 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-4 rounded-xl border border-red-200 dark:border-red-900/50 flex items-start gap-3 animate-in slide-in-from-top-2">
             <AlertCircle size={20} className="mt-0.5 flex-shrink-0" />
             <span className="whitespace-pre-wrap text-sm">{error}</span>
-            <button onClick={() => setError(null)} className="ml-auto font-bold hover:underline text-sm">Dismiss</button>
+            <button onClick={() => setError(null)} className="ml-auto font-bold hover:underline text-sm">
+              Dismiss
+            </button>
           </div>
-        )}
+        ) : null}
 
-        {step === AppStep.Setup && (
-          <SetupStep 
+        {step === AppStep.Setup ? (
+          <SetupStep
             darkMode={darkMode}
             setDarkMode={setDarkMode}
             isConnected={isConnected}
@@ -409,13 +425,11 @@ const App: React.FC = () => {
             setUseThinking={setUseThinking}
             onGenerate={handleGenerate}
           />
-        )}
+        ) : null}
 
-        {(step === AppStep.Generating || step === AppStep.Sending) && (
-          <LoadingStep message={loadingMessage} />
-        )}
+        {step === AppStep.Generating || step === AppStep.Sending ? <LoadingStep message={loadingMessage} /> : null}
 
-        {step === AppStep.Reviewing && (
+        {step === AppStep.Reviewing ? (
           <ReviewStep
             card={generatedCards[currentCardIndex]}
             totalCards={generatedCards.length}
@@ -430,28 +444,23 @@ const App: React.FC = () => {
             onAmend={handleAmend}
             isAmending={isAmending}
           />
-        )}
+        ) : null}
 
-        {step === AppStep.Finalizing && (
-          <FinalizeStep 
-             cards={generatedCards}
-             isConnected={isConnected}
-             onReset={handleReset}
-             onDownload={handleDownloadJson}
-             onSync={handleSendToAnki}
-             onConnect={() => setShowSettings(true)}
-          />
-        )}
-
-        {step === AppStep.Done && (
-          <DoneStep 
-            deckName={selectedDeck}
+        {step === AppStep.Finalizing ? (
+          <FinalizeStep
+            cards={generatedCards}
+            isConnected={isConnected}
             onReset={handleReset}
+            onDownload={handleDownloadJson}
+            onSync={handleSendToAnki}
+            onConnect={() => setShowSettings(true)}
           />
-        )}
+        ) : null}
+
+        {step === AppStep.Done ? <DoneStep deckName={selectedDeck} onReset={handleReset} /> : null}
       </main>
     </div>
   );
-};
+}
 
 export default App;

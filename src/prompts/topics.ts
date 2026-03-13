@@ -1,47 +1,52 @@
 import { Topic } from '../types';
 import promptContent from './topics.json';
 
-declare global {
-  interface Window {
-    customPromptOverrides?: Record<string, string>;
-  }
-}
+const TOPICS = Object.values(Topic);
 
 const topicKeyMap: Record<Topic, keyof typeof promptContent> = {
   [Topic.General]: 'general',
   [Topic.MathScience]: 'mathScience',
   [Topic.Vocabulary]: 'vocabulary',
-  [Topic.Programming]: 'programming'
+  [Topic.Programming]: 'programming',
 };
 
-const normalizedTopicKey = (topic: Topic) => topic.toLowerCase().replace(/[^a-z]/g, '');
+function normalizeTopicKey(topic: Topic): string {
+  return topic.toLowerCase().replace(/[^a-z]/g, '');
+}
+
+function getPrompt(topic: Topic): string {
+  return promptContent[topicKeyMap[topic]] || '';
+}
 
 export const TOPIC_PROMPTS: Record<Topic, string> = {
-  [Topic.General]: promptContent[topicKeyMap[Topic.General]] || '',
-  [Topic.MathScience]: promptContent[topicKeyMap[Topic.MathScience]] || '',
-  [Topic.Vocabulary]: promptContent[topicKeyMap[Topic.Vocabulary]] || '',
-  [Topic.Programming]: promptContent[topicKeyMap[Topic.Programming]] || ''
+  [Topic.General]: getPrompt(Topic.General),
+  [Topic.MathScience]: getPrompt(Topic.MathScience),
+  [Topic.Vocabulary]: getPrompt(Topic.Vocabulary),
+  [Topic.Programming]: getPrompt(Topic.Programming),
 };
 
-const applyOverrides = () => {
-  if (typeof window === 'undefined') return;
+function applyOverrides(): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
 
   const overrideData = window.customPromptOverrides ?? {};
+
   Object.entries(overrideData).forEach(([key, value]) => {
-    const matchingTopic = (Object.values(Topic) as Topic[]).find(
-      topic => normalizedTopicKey(topic) === key
-    );
+    const matchingTopic = TOPICS.find((topic) => normalizeTopicKey(topic) === key);
+
     if (matchingTopic) {
-      (TOPIC_PROMPTS as any)[matchingTopic] = value;
+      TOPIC_PROMPTS[matchingTopic] = value;
     }
   });
 
-  (Object.values(Topic) as Topic[]).forEach(topic => {
+  TOPICS.forEach((topic) => {
     const savedPrompt = localStorage.getItem(`prompt_${topic}`);
+
     if (savedPrompt) {
-      (TOPIC_PROMPTS as any)[topic] = savedPrompt;
+      TOPIC_PROMPTS[topic] = savedPrompt;
     }
   });
-};
+}
 
 applyOverrides();
