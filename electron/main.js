@@ -14,7 +14,7 @@ const backupsPath = path.join(promptsDir, 'backups');
 // Secure storage for API keys
 const credentialsPath = path.join(userDataPath, 'credentials.enc');
 const fallbackCredentialsPath = path.join(userDataPath, 'credentials.json');
-const defaultGeminiModel = 'gemini-3-pro-preview';
+const defaultGeminiModel = 'gemini-3.1-pro-preview';
 
 const normalizeTopicKey = (topic) => {
   if (!topic) return 'general';
