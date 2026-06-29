@@ -77,7 +77,7 @@
           version = "1.0.0";
           src = ./.;
 
-          npmDepsHash = "sha256-sfy6UGZH+YMUYyrkx8k6HRU9Sgu2Z6gzB4kgnT2Nq0c=";
+          npmDepsHash = "sha256-7mGgUhGQ6sCKChIVV23i8Lhf6rVfTbYxgotbjwNeujM=";
 
           nativeBuildInputs = [ pkgs.pkg-config pkgs.makeWrapper ];
           buildInputs = [ pkgs.vips ];
