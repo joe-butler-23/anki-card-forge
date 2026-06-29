@@ -1,5 +1,3 @@
-import { GoogleGenAI, Type } from '@google/genai';
-
 const SYSTEM_INSTRUCTION = `
 <system_instruction>
   <role>
@@ -89,54 +87,20 @@ const AMEND_SYSTEM_INSTRUCTION = `
 </amend_system_instruction>
 `;
 
-const flashcardResponseSchema = {
-  type: Type.ARRAY,
-  items: {
-    type: Type.OBJECT,
-    properties: {
-      cardType: {
-        type: Type.STRING,
-        enum: [
-          'Basic',
-          'Basic (type in the answer)'
-        ],
-        description: 'The type of Anki card to generate.'
-      },
-      front: {
-        type: Type.STRING
-      },
-      back: {
-        type: Type.STRING
-      },
-    },
-    required: ['cardType', 'front', 'back']
-  }
-};
+const FLASHCARD_JSON_INSTRUCTION = `
+Return only a JSON object with this exact shape:
+{"cards":[{"cardType":"Basic","front":"question HTML","back":"answer HTML"}]}
+`;
 
-const singleFlashcardSchema = {
-  type: Type.OBJECT,
-  properties: {
-    cardType: {
-      type: Type.STRING,
-      enum: [
-        'Basic',
-        'Basic (type in the answer)'
-      ],
-      description: 'The type of Anki card to generate.'
-    },
-    front: {
-      type: Type.STRING
-    },
-    back: {
-      type: Type.STRING
-    },
-  },
-  required: ['cardType', 'front', 'back']
-};
+const SINGLE_FLASHCARD_JSON_INSTRUCTION = `
+Return only a JSON object with this exact shape:
+{"card":{"cardType":"Basic","front":"question HTML","back":"answer HTML"}}
+`;
 
 const MAX_PROMPT_CHARS = 30000;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MIN_REQUEST_INTERVAL_MS = 1000;
+const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
 let lastRequestAt = 0;
 
@@ -166,14 +130,13 @@ const enforceRateLimit = () => {
   lastRequestAt = now;
 };
 
-const getAiClient = (apiKey) => {
+const assertApiKey = (apiKey) => {
   if (!apiKey) {
     throw new Error('Missing API key.');
   }
-  return new GoogleGenAI({ apiKey });
 };
 
-const buildContents = (prompt, image) => {
+const buildUserContent = (prompt, image) => {
   if (!image) {
     return prompt;
   }
@@ -182,61 +145,118 @@ const buildContents = (prompt, image) => {
   const mimeMatch = header && header.startsWith('data:') ? header.match(/data:(.*?);base64/) : null;
   const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
 
-  return {
-    parts: [
-      {
-        inlineData: {
-          mimeType,
-          data: dataPart || image,
-        },
+  return [
+    { type: 'text', text: prompt },
+    {
+      type: 'image_url',
+      image_url: {
+        url: `data:${mimeType};base64,${dataPart || image}`,
       },
-      { text: prompt },
-    ],
-  };
+    },
+  ];
+};
+
+const stripJsonFence = (text) => text
+  .trim()
+  .replace(/^```(?:json)?\s*/i, '')
+  .replace(/\s*```$/i, '');
+
+const parseJson = (text) => JSON.parse(stripJsonFence(text));
+
+const assertCard = (card) => {
+  if (!card || typeof card !== 'object') {
+    throw new Error('AI returned invalid card JSON.');
+  }
+  if (!['Basic', 'Basic (type in the answer)'].includes(card.cardType)) {
+    throw new Error(`AI returned invalid cardType: ${card.cardType}`);
+  }
+  if (typeof card.front !== 'string' || typeof card.back !== 'string') {
+    throw new Error('AI returned invalid card content.');
+  }
+};
+
+const normalizeCardsResponse = (text) => {
+  const parsed = parseJson(text);
+  const cards = Array.isArray(parsed) ? parsed : parsed.cards;
+  if (!Array.isArray(cards)) {
+    throw new Error('AI returned invalid response: expected cards array.');
+  }
+  cards.forEach(assertCard);
+  return JSON.stringify(cards);
+};
+
+const normalizeSingleCardResponse = (text) => {
+  const parsed = parseJson(text);
+  const card = parsed.card || parsed;
+  assertCard(card);
+  return JSON.stringify(card);
+};
+
+const createOpenRouterCompletion = async ({ apiKey, model, messages, temperature }) => {
+  assertApiKey(apiKey);
+
+  const response = await fetch(OPENROUTER_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': 'https://github.com/joe-butler-23/anki-card-forge',
+      'X-Title': 'Anki Card Forge',
+    },
+    body: JSON.stringify({
+      model,
+      messages,
+      temperature,
+      response_format: { type: 'json_object' },
+      max_tokens: 8192,
+    }),
+  });
+
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const detail = payload?.error?.message || payload?.message || response.statusText;
+    throw new Error(`OpenRouter request failed (${response.status}): ${detail}`);
+  }
+
+  const content = payload?.choices?.[0]?.message?.content;
+  if (typeof content !== 'string' || !content.trim()) {
+    throw new Error('OpenRouter returned an empty response.');
+  }
+
+  return content;
 };
 
 export const generateFlashcardsInMain = async ({ prompt, model, image, useThinking }, apiKey) => {
   enforceLimits(prompt, image);
   enforceRateLimit();
 
-  const ai = getAiClient(apiKey);
-
-  const config = {
-    systemInstruction: SYSTEM_INSTRUCTION,
-    responseMimeType: 'application/json',
-    responseSchema: flashcardResponseSchema,
-  };
-
-  if (useThinking) {
-    config.thinkingConfig = { thinkingBudget: 32768 };
-  } else {
-    config.temperature = 0.3;
-  }
-
-  const response = await ai.models.generateContent({
+  const response = await createOpenRouterCompletion({
+    apiKey,
     model,
-    contents: buildContents(prompt, image),
-    config,
+    temperature: useThinking ? 0.2 : 0.3,
+    messages: [
+      { role: 'system', content: `${SYSTEM_INSTRUCTION}\n${FLASHCARD_JSON_INSTRUCTION}` },
+      { role: 'user', content: buildUserContent(prompt, image) },
+    ],
   });
 
-  return response.text || '';
+  return normalizeCardsResponse(response);
 };
 
 export const amendFlashcardInMain = async ({ prompt, model }, apiKey) => {
   enforceLimits(prompt, null);
   enforceRateLimit();
 
-  const ai = getAiClient(apiKey);
-
-  const response = await ai.models.generateContent({
+  const response = await createOpenRouterCompletion({
+    apiKey,
     model,
-    contents: prompt,
-    config: {
-      systemInstruction: AMEND_SYSTEM_INSTRUCTION,
-      responseMimeType: 'application/json',
-      responseSchema: singleFlashcardSchema,
-    },
+    temperature: 0.3,
+    messages: [
+      { role: 'system', content: `${AMEND_SYSTEM_INSTRUCTION}\n${SINGLE_FLASHCARD_JSON_INSTRUCTION}` },
+      { role: 'user', content: prompt },
+    ],
   });
 
-  return response.text || '';
+  return normalizeSingleCardResponse(response);
 };

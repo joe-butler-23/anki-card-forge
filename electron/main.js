@@ -14,7 +14,7 @@ const backupsPath = path.join(promptsDir, 'backups');
 // Secure storage for API keys
 const credentialsPath = path.join(userDataPath, 'credentials.enc');
 const fallbackCredentialsPath = path.join(userDataPath, 'credentials.json');
-const defaultGeminiModel = 'gemini-3.1-pro-preview';
+const defaultGeminiModel = 'minimax/minimax-m3';
 
 const normalizeTopicKey = (topic) => {
   if (!topic) return 'general';
@@ -69,7 +69,7 @@ const getTopicBackupDir = (topic) => {
   return dir;
 };
 
-const getEnvApiKey = () => process.env.GEMINI_API_KEY || process.env.API_KEY || null;
+const getEnvApiKey = () => process.env.OPENROUTER_API_KEY || process.env.GEMINI_API_KEY || process.env.API_KEY || null;
 
 const readFallbackApiKey = () => {
   if (!fs.existsSync(fallbackCredentialsPath)) {
