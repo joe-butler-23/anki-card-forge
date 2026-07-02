@@ -44,13 +44,14 @@ test('builds modern codex exec args with schema output and optional image', () =
     imagePath: '/tmp/acf/attachment.png',
   });
 
-  assert.deepEqual(args.slice(0, 3), ['--ask-for-approval', 'never', 'exec']);
+  assert.deepEqual(args.slice(0, 1), ['exec']);
   assert.equal(args.includes('--ephemeral'), true);
   assert.equal(args.includes('--ignore-user-config'), true);
   assert.equal(args.includes('--ignore-rules'), true);
   assert.equal(args.includes('--output-schema'), true);
   assert.equal(args.includes('-i'), true);
-  assert.equal(args[args.indexOf('-i') - 1], '-');
+  assert.equal(args.at(-1), '-');
+  assert.equal(args.indexOf('-i') < args.indexOf('-'), true);
 });
 
 test('runs Codex through a non-shell executable and reads the output file', async () => {
@@ -62,7 +63,7 @@ test('runs Codex through a non-shell executable and reads the output file', asyn
 import fs from 'node:fs';
 const args = process.argv.slice(2);
 const outputIndex = args.indexOf('-o');
-if (args[0] !== '--ask-for-approval' || args[1] !== 'never' || args[2] !== 'exec') process.exit(2);
+if (args[0] !== 'exec') process.exit(2);
 if (!args.includes('--sandbox') || !args.includes('read-only')) process.exit(3);
 if (!args.includes('--output-schema')) process.exit(4);
 let stdin = '';

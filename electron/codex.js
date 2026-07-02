@@ -233,8 +233,6 @@ const materializeImageDataUrl = async (tmpDir, image) => {
 
 const buildCodexArgs = ({ cwd, outputPath, schemaPath, imagePath }) => {
   const args = [
-    '--ask-for-approval',
-    'never',
     'exec',
     '--ephemeral',
     '--sandbox',
@@ -250,10 +248,10 @@ const buildCodexArgs = ({ cwd, outputPath, schemaPath, imagePath }) => {
     outputPath,
   ];
 
-  args.push('-');
   if (imagePath) {
     args.push('-i', imagePath);
   }
+  args.push('-');
   return args;
 };
 
