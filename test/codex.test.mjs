@@ -87,3 +87,21 @@ process.stdin.on('end', () => {
     await fs.rm(tmpDir, { recursive: true, force: true });
   }
 });
+
+test('summarizes Codex failure output without echoing the prompt', () => {
+  const detail = __test__.summarizeCodexFailure({
+    code: 1,
+    stdout: '',
+    stderr: [
+      'OpenAI Codex v0.142.5',
+      '--------',
+      'user',
+      '<system_instruction>private prompt</system_instruction>',
+      "ERROR: You've hit your usage limit. Try again later.",
+      "ERROR: You've hit your usage limit. Try again later.",
+    ].join('\n'),
+  });
+
+  assert.equal(detail, "ERROR: You've hit your usage limit. Try again later.");
+  assert.equal(detail.includes('private prompt'), false);
+});

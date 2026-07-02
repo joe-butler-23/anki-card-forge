@@ -315,6 +315,29 @@ const readFinalOutput = async (outputPath, stdout) => {
   return finalOutput;
 };
 
+const summarizeCodexFailure = ({ stdout = '', stderr = '', code }) => {
+  const output = `${stderr}\n${stdout}`;
+  const errorLines = output
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => /^ERROR:/i.test(line));
+
+  const unique = [...new Set(errorLines)];
+  if (unique.length > 0) {
+    return unique.join('\n');
+  }
+
+  const compact = output
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line) => !/^(OpenAI Codex v|--------|workdir:|model:|provider:|approval:|sandbox:|reasoning|session id:|user$)/i.test(line))
+    .join('\n')
+    .trim();
+
+  return compact || `exit code ${code}`;
+};
+
 const runCodexExec = async ({ prompt, image, schemaPath, codexCommand = CODEX_COMMAND }) => {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'anki-card-forge-codex-'));
   try {
@@ -335,7 +358,7 @@ const runCodexExec = async ({ prompt, image, schemaPath, codexCommand = CODEX_CO
     }
 
     if (result.code !== 0) {
-      const detail = result.stderr.trim() || result.stdout.trim() || `exit code ${result.code}`;
+      const detail = summarizeCodexFailure(result);
       throw new Error(`Codex request failed: ${detail}`);
     }
 
@@ -430,5 +453,6 @@ export const __test__ = {
   normalizeCardsResponse,
   normalizeSingleCardResponse,
   runCodexExec,
+  summarizeCodexFailure,
   stripJsonFence,
 };
