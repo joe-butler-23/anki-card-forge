@@ -1,12 +1,11 @@
-import { DEFAULT_GEMINI_MODEL } from '../constants';
 import { Flashcard, GenerateFlashcardsPayload, Topic } from '../types';
 import { TOPIC_PROMPTS } from '../prompts/topics';
 import { AIResponseValidationError, validateFlashcardResponse, validateSingleFlashcard } from '../validation/flashcardSchema';
 
-export class GeminiAPIError extends Error {
+export class CodexAPIError extends Error {
   constructor(message: string, public readonly originalError?: Error) {
     super(message);
-    this.name = 'GeminiAPIError';
+    this.name = 'CodexAPIError';
   }
 }
 
@@ -27,7 +26,7 @@ function getElectronApi() {
   const api = window.electronAPI;
 
   if (!api?.generateFlashcards || !api?.amendFlashcard) {
-    throw new GeminiAPIError('Gemini generation is only available in the Electron app.');
+    throw new CodexAPIError('Codex generation is only available in the Electron app.');
   }
 
   return api;
@@ -42,17 +41,17 @@ function estimateBase64Bytes(dataUrl: string): number {
 
 function enforceNotesLimits(notes: string, image?: string | null): void {
   if (notes.length > MAX_NOTES_CHARS) {
-    throw new GeminiAPIError(`Notes are too long. Please keep them under ${MAX_NOTES_CHARS.toLocaleString()} characters.`);
+    throw new CodexAPIError(`Notes are too long. Please keep them under ${MAX_NOTES_CHARS.toLocaleString()} characters.`);
   }
 
   if (image && estimateBase64Bytes(image) > MAX_IMAGE_BYTES) {
-    throw new GeminiAPIError('Image is too large. Please use an image under 5 MB.');
+    throw new CodexAPIError('Image is too large. Please use an image under 5 MB.');
   }
 }
 
 function enforceInstructionLimit(instruction: string): void {
   if (instruction.length > MAX_INSTRUCTION_CHARS) {
-    throw new GeminiAPIError(`Amendment instructions are too long. Please keep them under ${MAX_INSTRUCTION_CHARS.toLocaleString()} characters.`);
+    throw new CodexAPIError(`Amendment instructions are too long. Please keep them under ${MAX_INSTRUCTION_CHARS.toLocaleString()} characters.`);
   }
 }
 
@@ -79,13 +78,9 @@ function buildAmendPrompt(card: Flashcard, instruction: string, topic: Topic): s
   `;
 }
 
-function resolveGenerationModel(userProvidedModel: string, image?: string | null, useThinking?: boolean): string {
-  return image || useThinking ? DEFAULT_GEMINI_MODEL : userProvidedModel;
-}
-
 function parseJsonResponse(responseText: string, emptyMessage: string, invalidJsonMessage: string): unknown {
   if (!responseText) {
-    throw new GeminiAPIError(emptyMessage);
+    throw new CodexAPIError(emptyMessage);
   }
 
   try {
@@ -99,11 +94,11 @@ function parseJsonResponse(responseText: string, emptyMessage: string, invalidJs
   }
 }
 
-function throwGeminiError(error: unknown, fallbackPrefix: string, useFriendlyMappings: boolean): never {
+function throwCodexError(error: unknown, fallbackPrefix: string, useFriendlyMappings: boolean): never {
   if (
     error instanceof JSONParseError ||
     error instanceof AIResponseValidationError ||
-    error instanceof GeminiAPIError
+    error instanceof CodexAPIError
   ) {
     throw error;
   }
@@ -113,20 +108,24 @@ function throwGeminiError(error: unknown, fallbackPrefix: string, useFriendlyMap
   if (useFriendlyMappings) {
     const lowerCaseMessage = errorMessage.toLowerCase();
 
-    if (lowerCaseMessage.includes('api key') || errorMessage.includes('401')) {
-      throw new GeminiAPIError('Missing or invalid API key.');
+    if (lowerCaseMessage.includes('not authenticated') || lowerCaseMessage.includes('run codex login')) {
+      throw new CodexAPIError('Codex CLI is not authenticated. Run codex login, then try again.');
+    }
+
+    if (lowerCaseMessage.includes('not installed') || lowerCaseMessage.includes('not on path')) {
+      throw new CodexAPIError('Codex CLI is not installed or not on PATH.');
     }
 
     if (errorMessage.includes('429') || lowerCaseMessage.includes('quota')) {
-      throw new GeminiAPIError('Rate limited - please wait and try again.');
+      throw new CodexAPIError('Rate limited - please wait and try again.');
     }
 
     if (lowerCaseMessage.includes('network') || errorMessage.includes('ECONNREFUSED') || lowerCaseMessage.includes('fetch')) {
-      throw new GeminiAPIError('Network error - check your connection.');
+      throw new CodexAPIError('Network error - check your connection.');
     }
   }
 
-  throw new GeminiAPIError(`${fallbackPrefix}: ${errorMessage}`, error instanceof Error ? error : undefined);
+  throw new CodexAPIError(`${fallbackPrefix}: ${errorMessage}`, error instanceof Error ? error : undefined);
 }
 
 function withFlashcardIds(cards: ReturnType<typeof validateFlashcardResponse>): Flashcard[] {
@@ -139,7 +138,6 @@ function withFlashcardIds(cards: ReturnType<typeof validateFlashcardResponse>): 
 export async function generateFlashcards(
   notes: string,
   topic: Topic,
-  userProvidedModel: string,
   image?: string | null,
   useThinking?: boolean,
 ): Promise<Flashcard[]> {
@@ -148,7 +146,6 @@ export async function generateFlashcards(
   const electronAPI = getElectronApi();
   const payload: GenerateFlashcardsPayload = {
     prompt: buildGenerationPrompt(notes, topic),
-    model: resolveGenerationModel(userProvidedModel, image, useThinking),
     image,
     useThinking: Boolean(useThinking),
   };
@@ -160,10 +157,10 @@ export async function generateFlashcards(
     return withFlashcardIds(validateFlashcardResponse(rawData));
   } catch (error) {
     if (import.meta.env.DEV) {
-      console.error('Gemini Generation Error:', error);
+      console.error('Codex Generation Error:', error);
     }
 
-    throwGeminiError(error, 'Generation failed', true);
+    throwCodexError(error, 'Generation failed', true);
   }
 }
 
@@ -171,7 +168,6 @@ export async function amendFlashcard(
   card: Flashcard,
   instruction: string,
   topic: Topic,
-  model: string,
 ): Promise<Flashcard> {
   enforceInstructionLimit(instruction);
 
@@ -180,7 +176,6 @@ export async function amendFlashcard(
   try {
     const responseText = await electronAPI.amendFlashcard({
       prompt: buildAmendPrompt(card, instruction, topic),
-      model,
     });
     const rawData = parseJsonResponse(
       responseText,
@@ -195,9 +190,9 @@ export async function amendFlashcard(
     };
   } catch (error) {
     if (import.meta.env.DEV) {
-      console.error('Gemini Amendment Error:', error);
+      console.error('Codex Amendment Error:', error);
     }
 
-    throwGeminiError(error, 'Amendment failed', false);
+    throwCodexError(error, 'Amendment failed', false);
   }
 }

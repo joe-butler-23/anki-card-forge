@@ -9,13 +9,13 @@
   "scripts": {
     "dev": "vite --config config/vite.config.ts",
     "build": "tsc --project config/tsconfig.json && vite build --config config/vite.config.ts",
+    "test": "node --test",
     "preview": "vite preview --config config/vite.config.ts",
     "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && NODE_ENV=development electron .\"",
     "electron:build": "npm run build && electron .",
     "package": "npm run build && electron-builder --publish never"
   },
   "dependencies": {
-    "@google/genai": "^1.30.0",
     "dompurify": "^3.3.1",
     "lucide-react": "^0.344.0",
     "mathjax-full": "^3.2.1",

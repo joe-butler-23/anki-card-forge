@@ -218,7 +218,7 @@ export function SetupStep({
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Topic Model</label>
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Topic</label>
               <button
                 onClick={openPromptEditor}
                 className="flex items-center gap-1 text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors"

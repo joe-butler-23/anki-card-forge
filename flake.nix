@@ -67,17 +67,12 @@
         };
 
         # Build the package using npm instead of yarn
-        packages.default = let
-          apiKey = if builtins.pathExists ./.env.local then
-            builtins.readFile ./.env.local
-          else
-            "";
-        in pkgs.buildNpmPackage {
+        packages.default = pkgs.buildNpmPackage {
           pname = "anki-card-forge";
-          version = "1.0.0";
+          version = "1.0.2";
           src = ./.;
 
-          npmDepsHash = "sha256-7mGgUhGQ6sCKChIVV23i8Lhf6rVfTbYxgotbjwNeujM=";
+          npmDepsHash = "sha256-iKPQjg9/ziLCV3QH0izgudiKgJXc7ZZr6LvL0BUh4SQ=";
 
           nativeBuildInputs = [ pkgs.pkg-config pkgs.makeWrapper ];
           buildInputs = [ pkgs.vips ];
@@ -112,7 +107,8 @@
             makeWrapper ${pkgs.electron}/bin/electron $out/bin/anki-card-forge \
               --add-flags "$out/share/anki-card-forge" \
               --prefix LD_LIBRARY_PATH : "${lib.makeLibraryPath runtimeLibs}" \
-              --set-default VITE_API_KEY "${apiKey}"
+              --run 'if [ -z "''${CODEX_CLI_PATH:-}" ] && [ -n "''${USER:-}" ] && [ -x "/etc/profiles/per-user/$USER/bin/codex" ]; then export CODEX_CLI_PATH="/etc/profiles/per-user/$USER/bin/codex"; fi' \
+              --run 'if [ -n "''${CODEX_CLI_PATH:-}" ]; then export PATH="$(dirname "$CODEX_CLI_PATH"):$PATH"; fi'
 
             runHook postInstall
           '';

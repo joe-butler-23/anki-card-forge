@@ -1,10 +1,10 @@
-# Gemini Agent Instructions for Anki Card Forge
+# Codex Agent Instructions for Anki Card Forge
 
 This document provides instructions for interacting with the Anki Card Forge codebase.
 
 ## Project Overview
 
-Anki Card Forge is an Electron application built with React and TypeScript. It uses the Google Gemini API to generate Anki flashcards from user notes and sends them to a running Anki instance via the AnkiConnect addon. The project is managed using Nix flakes for dependency management and building.
+Anki Card Forge is an Electron application built with React and TypeScript. It uses the local Codex CLI to generate Anki flashcards from user notes and sends them to a running Anki instance via the AnkiConnect addon. The project is managed using Nix flakes for dependency management and building.
 
 ## Tech Stack
 
@@ -19,9 +19,9 @@ Anki Card Forge is an Electron application built with React and TypeScript. It u
 -   `components/`: React components for the UI.
 -   `electron/`: Main process code for Electron.
 -   `services/`: Contains the core application logic.
-    -   `geminiService.ts`: Builds prompts and requests Gemini generation through IPC.
+    -   `codexService.ts`: Builds prompts and requests Codex generation through IPC.
     -   `ankiConnectService.ts`: Handles all interaction with the AnkiConnect API.
--   `electron/gemini.js`: Executes Gemini API calls in the main process.
+-   `electron/codex.js`: Executes Codex CLI calls in the main process.
 -   `prompts/`: System prompts for the AI.
 -   `types/`: Shared TypeScript types and enums (e.g., `CardType`).
 -   `flake.nix`: The heart of the project's dependency and build management.
@@ -151,8 +151,8 @@ This command compiles the application and places the output in a local `result` 
 The main logic for generating and processing card types is spread across a few key files:
 
 1.  **`types.ts`**: The `CardType` enum defines the valid, known card types for the entire application.
-2.  **`electron/gemini.js`**: Gemini API calls and response schemas live in the main process for security.
-3.  **`services/geminiService.ts`**: The renderer builds prompts, calls the IPC handlers, parses JSON, and validates output with Zod.
+2.  **`electron/codex.js`**: Codex CLI calls and response schemas live in the main process.
+3.  **`services/codexService.ts`**: The renderer builds prompts, calls the IPC handlers, parses JSON, and validates output with Zod.
 4.  **`services/ankiConnectService.ts`**: The `addNotesToAnki` function maps `cardType` to the correct Anki note type (`modelName`) and sanitizes fields before sending them to Anki.
 
 ## Troubleshooting Common Build & Development Issues

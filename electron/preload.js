@@ -22,11 +22,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   refreshPromptOverrides: () => ipcRenderer.invoke('read-prompt-overrides'),
   zoomIn: () => ipcRenderer.invoke('zoom-in'),
   zoomOut: () => ipcRenderer.invoke('zoom-out'),
-  // Secure API Key Storage
-  hasApiKey: () => ipcRenderer.invoke('has-api-key'),
-  setApiKey: (apiKey) => ipcRenderer.invoke('set-api-key', apiKey),
-  clearApiKey: () => ipcRenderer.invoke('clear-api-key'),
-  // Gemini API via main process
+  checkCodex: () => ipcRenderer.invoke('check-codex'),
   generateFlashcards: (payload) => ipcRenderer.invoke('generate-cards', payload),
   amendFlashcard: (payload) => ipcRenderer.invoke('amend-card', payload),
 });

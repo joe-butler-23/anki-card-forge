@@ -143,16 +143,15 @@ sudo nix flake lock --update-input anki-forge --refresh
 sudo nixos-rebuild switch
 ```
 
-### API Key Not Persisting
+### Codex CLI Not Found
 
-The API key is stored in Electron's secure storage:
-- Location: `~/.config/anki-card-forge/credentials.enc` (encrypted)
-- Fallback: `localStorage` in the Electron app
+The app uses the local Codex CLI from the Electron main process. On NixOS, the packaged wrapper first checks `CODEX_CLI_PATH`; if that is unset, it looks for `codex` in the current user's profile.
 
-If secure storage fails, check:
+If Codex is not detected, check:
 ```bash
-# Check if the credentials file exists
-ls -la ~/.config/anki-card-forge/
+codex --version
+codex login status
+echo "$CODEX_CLI_PATH"
 
 # Check electron logs
 journalctl --user -u electron-anki-card-forge (if running as service)
@@ -226,7 +225,7 @@ When releasing a new version:
 - [ ] Push to GitHub
 - [ ] Run `./scripts/update-system.sh` to deploy
 - [ ] Test the system installation with `anki-card-forge`
-- [ ] Verify API key persistence works
+- [ ] Verify Codex CLI status works
 - [ ] Verify Anki connection works
 
 ## Related Files

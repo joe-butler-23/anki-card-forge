@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { AlertCircle } from 'lucide-react';
-import { ANKI_CONNECT_URL_PRIMARY, DEFAULT_ANKI_DECK, DEFAULT_GEMINI_MODEL } from './constants';
+import { ANKI_CONNECT_URL_PRIMARY, DEFAULT_ANKI_DECK } from './constants';
 import { DoneStep } from './components/steps/DoneStep';
 import { FinalizeStep } from './components/steps/FinalizeStep';
 import { Header } from './components/Header';
@@ -9,14 +9,14 @@ import { ReviewStep } from './components/steps/ReviewStep';
 import { SettingsModal } from './components/SettingsModal';
 import { SetupStep } from './components/steps/SetupStep';
 import { addNotesToAnki, checkConnection, getDeckNames, pingAnki, setAnkiUrl } from './services/ankiConnectService';
-import { AIResponseValidationError, amendFlashcard, generateFlashcards, GeminiAPIError, JSONParseError } from './services/geminiService';
-import { AppStep, Flashcard, Topic } from './types';
+import { AIResponseValidationError, amendFlashcard, CodexAPIError, generateFlashcards, JSONParseError } from './services/codexService';
+import { AppStep, CodexStatus, Flashcard, Topic } from './types';
 
 function getErrorMessage(error: unknown, fallbackMessage: string): string {
   return error instanceof Error ? error.message : fallbackMessage;
 }
 
-function getGeminiErrorMessage(
+function getCodexErrorMessage(
   error: unknown,
   options: {
     validationPrefix: string;
@@ -32,7 +32,7 @@ function getGeminiErrorMessage(
     return options.invalidJsonMessage;
   }
 
-  if (error instanceof GeminiAPIError || error instanceof Error) {
+  if (error instanceof CodexAPIError || error instanceof Error) {
     return error.message;
   }
 
@@ -48,7 +48,7 @@ function updateCardAtIndex(
 }
 
 function getLoadingMessage(useThinking: boolean): string {
-  return useThinking ? 'Deep thinking in progress...' : 'Consulting the Neural Forge...';
+  return useThinking ? 'Codex is checking the card set...' : 'Asking Codex...';
 }
 
 function App(): React.JSX.Element {
@@ -63,9 +63,12 @@ function App(): React.JSX.Element {
   const [useThinking, setUseThinking] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [customUrl, setCustomUrlState] = useState(ANKI_CONNECT_URL_PRIMARY);
-  const [hasGeminiApiKey, setHasGeminiApiKey] = useState(false);
+  const [codexStatus, setCodexStatus] = useState<CodexStatus>({
+    available: false,
+    authenticated: false,
+  });
   const [isCheckingConnection, setIsCheckingConnection] = useState(false);
-  const [isCheckingApiKey, setIsCheckingApiKey] = useState(true);
+  const [isCheckingCodex, setIsCheckingCodex] = useState(true);
   const [generatedCards, setGeneratedCards] = useState<Flashcard[]>([]);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [loadingMessage, setLoadingMessage] = useState('');
@@ -102,56 +105,30 @@ function App(): React.JSX.Element {
     return () => window.removeEventListener('wheel', handleWheel);
   }, []);
 
+  async function refreshCodexStatus(): Promise<void> {
+    setIsCheckingCodex(true);
+    try {
+      const status = await window.electronAPI?.checkCodex?.();
+      setCodexStatus(status ?? {
+        available: false,
+        authenticated: false,
+        message: 'Codex status is only available in the Electron app.',
+      });
+    } catch (error) {
+      console.error('Failed to check Codex status:', error);
+      setCodexStatus({
+        available: false,
+        authenticated: false,
+        message: getErrorMessage(error, 'Unable to check Codex status.'),
+      });
+    } finally {
+      setIsCheckingCodex(false);
+    }
+  }
+
   useEffect(() => {
-    async function checkApiKey(): Promise<void> {
-      try {
-        const hasApiKey = await window.electronAPI?.hasApiKey?.();
-        setHasGeminiApiKey(Boolean(hasApiKey));
-      } catch (error) {
-        console.error('Failed to check API key:', error);
-        setHasGeminiApiKey(false);
-      } finally {
-        setIsCheckingApiKey(false);
-      }
-    }
-
-    void checkApiKey();
+    void refreshCodexStatus();
   }, []);
-
-  async function saveGeminiApiKey(key: string): Promise<boolean> {
-    if (!window.electronAPI?.setApiKey) {
-      return false;
-    }
-
-    try {
-      const saved = await window.electronAPI.setApiKey(key);
-
-      if (saved) {
-        setHasGeminiApiKey(true);
-        return true;
-      }
-    } catch (error) {
-      console.error('Failed to save API key to secure storage:', error);
-    }
-
-    return false;
-  }
-
-  async function clearGeminiApiKey(): Promise<void> {
-    if (!window.electronAPI?.clearApiKey) {
-      return;
-    }
-
-    try {
-      const cleared = await window.electronAPI.clearApiKey();
-
-      if (cleared) {
-        setHasGeminiApiKey(false);
-      }
-    } catch (error) {
-      console.error('Failed to clear API key:', error);
-    }
-  }
 
   async function refreshConnection(showErrors: boolean): Promise<void> {
     setIsCheckingConnection(true);
@@ -224,8 +201,8 @@ function App(): React.JSX.Element {
       return;
     }
 
-    if (!hasGeminiApiKey && !isCheckingApiKey) {
-      setError('Please add your Gemini API key in Settings before generating.');
+    if (!isCheckingCodex && (!codexStatus.available || !codexStatus.authenticated)) {
+      setError(codexStatus.message || 'Codex CLI is not ready. Run codex login, then try again.');
       return;
     }
 
@@ -234,7 +211,7 @@ function App(): React.JSX.Element {
     setLoadingMessage(getLoadingMessage(useThinking));
 
     try {
-      const cards = await generateFlashcards(notes, selectedTopic, DEFAULT_GEMINI_MODEL, selectedImage, useThinking);
+      const cards = await generateFlashcards(notes, selectedTopic, selectedImage, useThinking);
 
       if (cards.length === 0) {
         setError('AI returned no cards. Try adding more detail to your notes.');
@@ -248,7 +225,7 @@ function App(): React.JSX.Element {
     } catch (error) {
       console.error(error);
       setError(
-        getGeminiErrorMessage(error, {
+        getCodexErrorMessage(error, {
           validationPrefix: 'AI response validation failed',
           invalidJsonMessage: 'AI returned an invalid response format. Please try again.',
           fallbackMessage: 'Generation failed. Please try again.',
@@ -293,14 +270,14 @@ function App(): React.JSX.Element {
     setIsAmending(true);
 
     try {
-      const amendedCard = await amendFlashcard(currentCard, amendInstruction, selectedTopic, DEFAULT_GEMINI_MODEL);
+      const amendedCard = await amendFlashcard(currentCard, amendInstruction, selectedTopic);
 
       setGeneratedCards((cards) => updateCardAtIndex(cards, currentCardIndex, () => amendedCard));
       setAmendInstruction('');
     } catch (error) {
       console.error(error);
       setError(
-        getGeminiErrorMessage(error, {
+        getCodexErrorMessage(error, {
           validationPrefix: 'Card amendment validation failed',
           invalidJsonMessage: 'AI returned an invalid response. Please try again.',
           fallbackMessage: 'Failed to amend card.',
@@ -378,10 +355,9 @@ function App(): React.JSX.Element {
         onClose={() => setShowSettings(false)}
         customUrl={customUrl}
         setCustomUrl={setCustomUrlState}
-        hasGeminiApiKey={hasGeminiApiKey}
-        onSaveApiKey={saveGeminiApiKey}
-        onClearApiKey={clearGeminiApiKey}
-        isCheckingApiKey={isCheckingApiKey}
+        codexStatus={codexStatus}
+        isCheckingCodex={isCheckingCodex}
+        onRefreshCodexStatus={refreshCodexStatus}
         isChecking={isCheckingConnection}
         onSave={handleUrlUpdate}
       />

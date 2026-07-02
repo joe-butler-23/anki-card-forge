@@ -10,7 +10,7 @@
 
 Anki is a much-used and much-loved app and there are lots of different views regarding the best or most effective way to use it. For me, Anki has always been a tool for _remembering_ things rather than learning them (if I don't understand a topic, then reviewing lots of cards on it won't be helpful). And **Anki Card Forge** is simply a way of turning things you've learned into nicely formatted flashcards with minimal effort. 
 
-To be very clear up front, this app is entirely AI-generated (down to the terrible name it came up with that I couldn't be bothered to change). The initial draft was done with Google AI Studio (which is why it's set up to work with Gemini) and was then refined a bit with Claude Code. I have been using this myself for a couple months now without any real issues. In general, I have found that Google's AI Studio does a decent job, especially if you then run the app through a couple code reviews. But if you hate AI slop, or if you have concerns with AI-generated code etc. then this is obviously not the app for you!
+To be very clear up front, this app is entirely AI-generated (down to the terrible name it came up with that I couldn't be bothered to change). I have been using this myself for a couple months now without any real issues. But if you hate AI slop, or if you have concerns with AI-generated code etc. then this is obviously not the app for you!
 
 <div align="center">
   
@@ -24,10 +24,10 @@ Anki Card Forge is built to produce high-quality flashcards and then sync them t
 
 | Feature | Description |
 | :--- | :--- |
-| **AI-Powered Generation** | Uses Gemini API to generate structured flashcards from unstructured text notes. |
+| **AI-Powered Generation** | Uses the local Codex CLI to generate structured flashcards from unstructured text notes. |
 | **Topic Optimization** | Includes specialized (handcrafted) prompts for General, Math/Science (with LaTeX guidance), Vocabulary, and Programming. |
 | **Multimodal Support** | Ability to upload images/screenshots alongside notes for card generation. | 
-| **Deep Thinking Mode** | An optional mode to engage extended AI reasoning (using Pro rather than Flash) for complex or ambiguous topics (but can take ages). |
+| **Deep Thinking Mode** | An optional mode that asks Codex to spend extra care on complex or ambiguous topics. |
 | **Direct Anki Sync** | Instantly sends approved cards to your running Anki instance via AnkiConnect. |
 | **Review & Edit Workflow** | Provides a dedicated interface to review, edit, and approve each generated card before syncing. |
 
@@ -42,7 +42,7 @@ One additional warning: the card generation process is _slooow._ I sped this up 
 Before using Anki Card Forge, you need the following:
 
 1.  **Anki** with the **[AnkiConnect](https://ankiweb.net/shared/info/2055492159)** add-on installed and running (AnkiConnect requires Anki to be running)
-2.  **Gemini API Key** - Get a key from **[Google AI Studio](https://aistudio.google.com/apikey)**. You will get billed monthly for usage, though it's typically not much. 
+2.  **Codex CLI** installed and authenticated with `codex login`.
 
 ### Installation
 
@@ -87,7 +87,7 @@ I run Nix, so have been using the `flake.nix` to develop it. The **[docs/DEPLOYM
 
 1.  Launch Anki Card Forge.
 2.  Click the **Settings** icon (gear) in the header.
-3.  Enter your **Gemini API Key** in the designated field. The key is stored using Electron's `safeStorage`.
+3.  Check that the Codex CLI status shows as ready.
 4.  Ensure Anki is running with AnkiConnect enabled (the app only connects to localhost).
 5.  Click **Save & Connect** to verify that the application can communicate with Anki.
 
@@ -96,7 +96,7 @@ I run Nix, so have been using the `flake.nix` to develop it. The **[docs/DEPLOYM
 1.  **Select a Topic**: Choose the most relevant topic type (e.g., General, Math/Science) to optimize the AI's output.
 2.  **Select a deck**: The app should be able to use AnkiConnect to auto-populate the list of decks available
 3.  **Enter Notes**: Paste or type your study material into the notes area.
-4.  **Generate**: Click "Forge Cards" to send your notes to the Gemini AI.
+4.  **Generate**: Click "Forge Cards" to send your notes to Codex.
 5.  **Review**: A list of generated cards will appear. Review, edit, or reject each card as needed.
 6.  **Sync**: Click the sync button to send all approved cards directly to your selected Anki deck.
 
@@ -104,8 +104,8 @@ I run Nix, so have been using the `flake.nix` to develop it. The **[docs/DEPLOYM
 
 Bearing in mind the warnings about the API generated content above, the app uses the following approaches to reduce risk (without any guarantees):
 
-- **Secure API Key Storage**: Your Gemini API key is stored using Electron's `safeStorage` API, which leverages your operating system's native credential manager (e.g., macOS Keychain, Windows Credential Manager). The key is encrypted at rest.
-- **No API Key in Renderer**: Gemini API calls are executed in the Electron main process to avoid exposing the key to renderer content.
+- **No Provider Secret Storage**: The app uses your existing local Codex CLI login instead of storing a separate model-provider key.
+- **No Model Calls in Renderer**: Codex CLI calls are executed in the Electron main process.
 - **HTML Sanitization**: AI-generated content is sanitized with `DOMPurify` before rendering and before syncing to Anki.
 - **Local Asset Loading**: MathJax is bundled locally to avoid remote script execution.
 - **CSP in Renderer**: A restrictive Content Security Policy limits script, connection, and asset sources.

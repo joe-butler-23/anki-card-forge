@@ -1,3 +1,9 @@
+import fs from 'fs/promises';
+import os from 'os';
+import path from 'path';
+import { spawn } from 'child_process';
+import { fileURLToPath } from 'url';
+
 const SYSTEM_INSTRUCTION = `
 <system_instruction>
   <role>
@@ -97,10 +103,21 @@ Return only a JSON object with this exact shape:
 {"card":{"cardType":"Basic","front":"question HTML","back":"answer HTML"}}
 `;
 
+const THINKING_INSTRUCTION = `
+Take extra care before answering. Check that each card is atomic, self-contained, and has one clear expected answer.
+`;
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const FLASHCARDS_SCHEMA_PATH = path.join(__dirname, 'schemas', 'flashcards.schema.json');
+const FLASHCARD_SCHEMA_PATH = path.join(__dirname, 'schemas', 'flashcard.schema.json');
+const CODEX_COMMAND = process.env.CODEX_CLI_PATH || 'codex';
+
 const MAX_PROMPT_CHARS = 30000;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MIN_REQUEST_INTERVAL_MS = 1000;
-const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const CODEX_TIMEOUT_MS = 240000;
+const STATUS_TIMEOUT_MS = 20000;
+const MAX_PROCESS_OUTPUT_BYTES = 8 * 1024 * 1024;
 
 let lastRequestAt = 0;
 
@@ -130,32 +147,6 @@ const enforceRateLimit = () => {
   lastRequestAt = now;
 };
 
-const assertApiKey = (apiKey) => {
-  if (!apiKey) {
-    throw new Error('Missing API key.');
-  }
-};
-
-const buildUserContent = (prompt, image) => {
-  if (!image) {
-    return prompt;
-  }
-
-  const [header, dataPart] = image.split(',');
-  const mimeMatch = header && header.startsWith('data:') ? header.match(/data:(.*?);base64/) : null;
-  const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
-
-  return [
-    { type: 'text', text: prompt },
-    {
-      type: 'image_url',
-      image_url: {
-        url: `data:${mimeType};base64,${dataPart || image}`,
-      },
-    },
-  ];
-};
-
 const stripJsonFence = (text) => text
   .trim()
   .replace(/^```(?:json)?\s*/i, '')
@@ -165,13 +156,13 @@ const parseJson = (text) => JSON.parse(stripJsonFence(text));
 
 const assertCard = (card) => {
   if (!card || typeof card !== 'object') {
-    throw new Error('AI returned invalid card JSON.');
+    throw new Error('Codex returned invalid card JSON.');
   }
   if (!['Basic', 'Basic (type in the answer)'].includes(card.cardType)) {
-    throw new Error(`AI returned invalid cardType: ${card.cardType}`);
+    throw new Error(`Codex returned invalid cardType: ${card.cardType}`);
   }
   if (typeof card.front !== 'string' || typeof card.back !== 'string') {
-    throw new Error('AI returned invalid card content.');
+    throw new Error('Codex returned invalid card content.');
   }
 };
 
@@ -179,7 +170,7 @@ const normalizeCardsResponse = (text) => {
   const parsed = parseJson(text);
   const cards = Array.isArray(parsed) ? parsed : parsed.cards;
   if (!Array.isArray(cards)) {
-    throw new Error('AI returned invalid response: expected cards array.');
+    throw new Error('Codex returned invalid response: expected cards array.');
   }
   cards.forEach(assertCard);
   return JSON.stringify(cards);
@@ -192,71 +183,254 @@ const normalizeSingleCardResponse = (text) => {
   return JSON.stringify(card);
 };
 
-const createOpenRouterCompletion = async ({ apiKey, model, messages, temperature }) => {
-  assertApiKey(apiKey);
-
-  const response = await fetch(OPENROUTER_URL, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-      'HTTP-Referer': 'https://github.com/joe-butler-23/anki-card-forge',
-      'X-Title': 'Anki Card Forge',
-    },
-    body: JSON.stringify({
-      model,
-      messages,
-      temperature,
-      response_format: { type: 'json_object' },
-      max_tokens: 8192,
-    }),
-  });
-
-  const payload = await response.json().catch(() => null);
-
-  if (!response.ok) {
-    const detail = payload?.error?.message || payload?.message || response.statusText;
-    throw new Error(`OpenRouter request failed (${response.status}): ${detail}`);
+const mimeToExtension = (mimeType) => {
+  switch (mimeType.toLowerCase()) {
+    case 'image/png':
+      return 'png';
+    case 'image/jpeg':
+    case 'image/jpg':
+      return 'jpg';
+    case 'image/webp':
+      return 'webp';
+    case 'image/gif':
+      return 'gif';
+    case 'image/bmp':
+      return 'bmp';
+    default:
+      return 'img';
   }
-
-  const content = payload?.choices?.[0]?.message?.content;
-  if (typeof content !== 'string' || !content.trim()) {
-    throw new Error('OpenRouter returned an empty response.');
-  }
-
-  return content;
 };
 
-export const generateFlashcardsInMain = async ({ prompt, model, image, useThinking }, apiKey) => {
+const parseImageData = (image) => {
+  const match = image.match(/^data:([^;,]+);base64,(.*)$/s);
+  if (match) {
+    return {
+      mimeType: match[1],
+      base64: match[2].replace(/\s/g, ''),
+    };
+  }
+
+  return {
+    mimeType: 'image/jpeg',
+    base64: image.replace(/\s/g, ''),
+  };
+};
+
+const materializeImageDataUrl = async (tmpDir, image) => {
+  const { mimeType, base64 } = parseImageData(image);
+  const buffer = Buffer.from(base64, 'base64');
+  if (buffer.length === 0) {
+    throw new Error('Image attachment is empty.');
+  }
+  if (buffer.length > MAX_IMAGE_BYTES) {
+    throw new Error('Image is too large. Please use an image under 5 MB.');
+  }
+
+  const imagePath = path.join(tmpDir, `attachment.${mimeToExtension(mimeType)}`);
+  await fs.writeFile(imagePath, buffer, { mode: 0o600 });
+  return imagePath;
+};
+
+const buildCodexArgs = ({ cwd, outputPath, schemaPath, imagePath }) => {
+  const args = [
+    '--ask-for-approval',
+    'never',
+    'exec',
+    '--ephemeral',
+    '--sandbox',
+    'read-only',
+    '--skip-git-repo-check',
+    '--cd',
+    cwd,
+    '--ignore-rules',
+    '--ignore-user-config',
+    '--output-schema',
+    schemaPath,
+    '-o',
+    outputPath,
+  ];
+
+  args.push('-');
+  if (imagePath) {
+    args.push('-i', imagePath);
+  }
+  return args;
+};
+
+const runProcess = (command, args, { input = '', timeoutMs = CODEX_TIMEOUT_MS } = {}) => new Promise((resolve) => {
+  const child = spawn(command, args, {
+    stdio: ['pipe', 'pipe', 'pipe'],
+    env: process.env,
+  });
+
+  let stdout = '';
+  let stderr = '';
+  let settled = false;
+  let timedOut = false;
+  let timer = null;
+
+  const finish = (result) => {
+    if (settled) {
+      return;
+    }
+    settled = true;
+    if (timer) {
+      clearTimeout(timer);
+    }
+    resolve(result);
+  };
+
+  const appendOutput = (current, chunk) => {
+    if (current.length >= MAX_PROCESS_OUTPUT_BYTES) {
+      return current;
+    }
+    return (current + chunk.toString('utf8')).slice(0, MAX_PROCESS_OUTPUT_BYTES);
+  };
+
+  timer = setTimeout(() => {
+    timedOut = true;
+    child.kill('SIGTERM');
+  }, timeoutMs);
+
+  child.stdout.on('data', (chunk) => {
+    stdout = appendOutput(stdout, chunk);
+  });
+  child.stderr.on('data', (chunk) => {
+    stderr = appendOutput(stderr, chunk);
+  });
+  child.on('error', (error) => {
+    finish({ code: null, stdout, stderr, error, timedOut: false });
+  });
+  child.on('close', (code) => {
+    finish({ code, stdout, stderr, error: null, timedOut });
+  });
+
+  child.stdin.end(input);
+});
+
+const readFinalOutput = async (outputPath, stdout) => {
+  const fileOutput = await fs.readFile(outputPath, 'utf8').catch(() => '');
+  const finalOutput = fileOutput.trim() || stdout.trim();
+  if (!finalOutput) {
+    throw new Error('Codex returned an empty response.');
+  }
+  return finalOutput;
+};
+
+const runCodexExec = async ({ prompt, image, schemaPath, codexCommand = CODEX_COMMAND }) => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'anki-card-forge-codex-'));
+  try {
+    const outputPath = path.join(tmpDir, 'response.json');
+    const imagePath = image ? await materializeImageDataUrl(tmpDir, image) : null;
+    const args = buildCodexArgs({ cwd: tmpDir, outputPath, schemaPath, imagePath });
+    const result = await runProcess(codexCommand, args, { input: prompt });
+
+    if (result.error) {
+      if (result.error.code === 'ENOENT') {
+        throw new Error('Codex CLI is not installed or not on PATH.');
+      }
+      throw result.error;
+    }
+
+    if (result.timedOut) {
+      throw new Error('Codex request timed out.');
+    }
+
+    if (result.code !== 0) {
+      const detail = result.stderr.trim() || result.stdout.trim() || `exit code ${result.code}`;
+      throw new Error(`Codex request failed: ${detail}`);
+    }
+
+    return readFinalOutput(outputPath, result.stdout);
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+};
+
+const runStatusCommand = async (args) => runProcess(CODEX_COMMAND, args, {
+  timeoutMs: STATUS_TIMEOUT_MS,
+});
+
+export const checkCodexStatus = async () => {
+  const versionResult = await runStatusCommand(['--version']);
+  if (versionResult.error) {
+    return {
+      available: false,
+      authenticated: false,
+      message: versionResult.error.code === 'ENOENT'
+        ? 'Codex CLI is not installed or not on PATH.'
+        : versionResult.error.message,
+    };
+  }
+  if (versionResult.code !== 0) {
+    return {
+      available: false,
+      authenticated: false,
+      message: versionResult.stderr.trim() || versionResult.stdout.trim() || 'Codex CLI did not start.',
+    };
+  }
+
+  const loginResult = await runStatusCommand(['login', 'status']);
+  const loginOutput = (loginResult.stdout || loginResult.stderr).trim();
+  if (loginResult.error) {
+    return {
+      available: true,
+      authenticated: false,
+      version: versionResult.stdout.trim(),
+      message: loginResult.error.message,
+    };
+  }
+
+  return {
+    available: true,
+    authenticated: loginResult.code === 0 && /logged in/i.test(loginOutput),
+    version: versionResult.stdout.trim(),
+    message: loginOutput || 'Run codex login.',
+  };
+};
+
+export const generateFlashcardsInMain = async ({ prompt, image, useThinking }) => {
   enforceLimits(prompt, image);
   enforceRateLimit();
 
-  const response = await createOpenRouterCompletion({
-    apiKey,
-    model,
-    temperature: useThinking ? 0.2 : 0.3,
-    messages: [
-      { role: 'system', content: `${SYSTEM_INSTRUCTION}\n${FLASHCARD_JSON_INSTRUCTION}` },
-      { role: 'user', content: buildUserContent(prompt, image) },
-    ],
+  const codexPrompt = [
+    SYSTEM_INSTRUCTION,
+    FLASHCARD_JSON_INSTRUCTION,
+    useThinking ? THINKING_INSTRUCTION : '',
+    prompt,
+  ].filter(Boolean).join('\n\n');
+
+  const response = await runCodexExec({
+    prompt: codexPrompt,
+    image,
+    schemaPath: FLASHCARDS_SCHEMA_PATH,
   });
 
   return normalizeCardsResponse(response);
 };
 
-export const amendFlashcardInMain = async ({ prompt, model }, apiKey) => {
+export const amendFlashcardInMain = async ({ prompt }) => {
   enforceLimits(prompt, null);
   enforceRateLimit();
 
-  const response = await createOpenRouterCompletion({
-    apiKey,
-    model,
-    temperature: 0.3,
-    messages: [
-      { role: 'system', content: `${AMEND_SYSTEM_INSTRUCTION}\n${SINGLE_FLASHCARD_JSON_INSTRUCTION}` },
-      { role: 'user', content: prompt },
-    ],
+  const response = await runCodexExec({
+    prompt: [
+      AMEND_SYSTEM_INSTRUCTION,
+      SINGLE_FLASHCARD_JSON_INSTRUCTION,
+      prompt,
+    ].join('\n\n'),
+    schemaPath: FLASHCARD_SCHEMA_PATH,
   });
 
   return normalizeSingleCardResponse(response);
+};
+
+export const __test__ = {
+  buildCodexArgs,
+  checkCodexStatus,
+  materializeImageDataUrl,
+  normalizeCardsResponse,
+  normalizeSingleCardResponse,
+  runCodexExec,
+  stripJsonFence,
 };

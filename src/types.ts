@@ -40,14 +40,19 @@ export interface PromptBackupVersion {
 
 export interface GenerateFlashcardsPayload {
   prompt: string;
-  model: string;
   image?: string | null;
   useThinking?: boolean;
 }
 
 export interface AmendFlashcardPayload {
   prompt: string;
-  model: string;
+}
+
+export interface CodexStatus {
+  available: boolean;
+  authenticated: boolean;
+  version?: string;
+  message?: string;
 }
 
 export interface ElectronAPI {
@@ -56,9 +61,7 @@ export interface ElectronAPI {
   refreshPromptOverrides: () => Promise<Record<string, string>>;
   zoomIn: () => Promise<void>;
   zoomOut: () => Promise<void>;
-  hasApiKey: () => Promise<boolean>;
-  setApiKey: (apiKey: string) => Promise<boolean>;
-  clearApiKey: () => Promise<boolean>;
+  checkCodex: () => Promise<CodexStatus>;
   generateFlashcards: (payload: GenerateFlashcardsPayload) => Promise<string>;
   amendFlashcard: (payload: AmendFlashcardPayload) => Promise<string>;
 }

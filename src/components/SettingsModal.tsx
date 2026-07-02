@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { AlertCircle, Copy, Loader2, RefreshCw, Settings, XCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Copy, Loader2, RefreshCw, Settings, Terminal, XCircle } from 'lucide-react';
+import { CodexStatus } from '../types';
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   customUrl: string;
   setCustomUrl: (url: string) => void;
-  hasGeminiApiKey: boolean;
-  onSaveApiKey: (key: string) => Promise<boolean>;
-  onClearApiKey: () => void;
-  isCheckingApiKey: boolean;
+  codexStatus: CodexStatus;
+  isCheckingCodex: boolean;
+  onRefreshCodexStatus: () => Promise<void>;
   isChecking: boolean;
   onSave: (url?: string) => void;
 }
@@ -19,14 +19,12 @@ export function SettingsModal({
   onClose,
   customUrl,
   setCustomUrl,
-  hasGeminiApiKey,
-  onSaveApiKey,
-  onClearApiKey,
-  isCheckingApiKey,
+  codexStatus,
+  isCheckingCodex,
+  onRefreshCodexStatus,
   isChecking,
   onSave,
 }: SettingsModalProps): React.JSX.Element | null {
-  const [localApiKey, setLocalApiKey] = useState('');
   const [localUrl, setLocalUrl] = useState(customUrl);
 
   useEffect(() => {
@@ -34,7 +32,6 @@ export function SettingsModal({
       return;
     }
 
-    setLocalApiKey('');
     setLocalUrl(customUrl);
   }, [customUrl, isOpen]);
 
@@ -43,36 +40,14 @@ export function SettingsModal({
   }
 
   const isHttps = window.location.protocol === 'https:';
-  const apiKeyStatusText = isCheckingApiKey
-    ? 'Checking key status...'
-    : hasGeminiApiKey
-      ? 'Key saved on this device.'
-      : 'No key saved yet.';
-
-  async function saveApiKeyIfProvided(): Promise<boolean> {
-    const trimmedApiKey = localApiKey.trim();
-
-    if (!trimmedApiKey) {
-      return true;
-    }
-
-    const saved = await onSaveApiKey(trimmedApiKey);
-
-    if (!saved) {
-      alert('Unable to save API key. Please try again.');
-      return false;
-    }
-
-    return true;
-  }
+  const codexReady = codexStatus.available && codexStatus.authenticated;
+  const codexStatusText = isCheckingCodex
+    ? 'Checking Codex...'
+    : codexReady
+      ? `Ready${codexStatus.version ? ` (${codexStatus.version})` : ''}`
+      : codexStatus.message || 'Run codex login, then refresh.';
 
   async function handleSave(): Promise<void> {
-    const apiKeySaved = await saveApiKeyIfProvided();
-
-    if (!apiKeySaved) {
-      return;
-    }
-
     setCustomUrl(localUrl);
     onSave(localUrl);
   }
@@ -95,23 +70,25 @@ export function SettingsModal({
 
         <div className="p-6 space-y-5">
           <div>
-            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block">Gemini API Key</label>
-            <div className="flex gap-2">
-              <input
-                type="password"
-                value={localApiKey}
-                onChange={(event) => setLocalApiKey(event.target.value)}
-                className="flex-grow px-3 py-2.5 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                placeholder={hasGeminiApiKey ? 'Leave blank to keep existing key' : 'Enter your Gemini API Key'}
-              />
-            </div>
-            <div className="mt-2 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-              {apiKeyStatusText}
-              {hasGeminiApiKey ? (
-                <button type="button" onClick={onClearApiKey} className="text-red-600 dark:text-red-400 hover:underline">
-                  Clear
-                </button>
-              ) : null}
+            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block">Codex CLI</label>
+            <div className="flex items-center gap-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2.5">
+              {isCheckingCodex ? (
+                <Loader2 size={16} className="animate-spin text-slate-400" />
+              ) : codexReady ? (
+                <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400" />
+              ) : (
+                <Terminal size={16} className="text-amber-600 dark:text-amber-400" />
+              )}
+              <span className="min-w-0 flex-1 truncate text-sm text-slate-700 dark:text-slate-200">{codexStatusText}</span>
+              <button
+                type="button"
+                onClick={onRefreshCodexStatus}
+                disabled={isCheckingCodex}
+                className="p-1.5 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-50 dark:hover:bg-slate-900 rounded disabled:opacity-50"
+                title="Refresh Codex status"
+              >
+                <RefreshCw size={14} />
+              </button>
             </div>
           </div>
 

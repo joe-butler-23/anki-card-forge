@@ -1,0 +1,26 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["card"],
+  "properties": {
+    "card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cardType", "front", "back"],
+      "properties": {
+        "cardType": {
+          "type": "string",
+          "enum": ["Basic", "Basic (type in the answer)"]
+        },
+        "front": {
+          "type": "string",
+          "minLength": 1
+        },
+        "back": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

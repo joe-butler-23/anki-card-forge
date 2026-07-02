@@ -1,8 +1,8 @@
-import { app, BrowserWindow, Menu, ipcMain, globalShortcut, safeStorage } from 'electron';
+import { app, BrowserWindow, Menu, ipcMain, globalShortcut } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
-import { generateFlashcardsInMain, amendFlashcardInMain } from './gemini.js';
+import { generateFlashcardsInMain, amendFlashcardInMain, checkCodexStatus } from './codex.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const promptsJsonPath = path.join(__dirname, '../src/prompts/topics.json');
@@ -10,11 +10,6 @@ const userDataPath = app.getPath('userData');
 const promptsDir = path.join(userDataPath, 'prompts');
 const customPromptsPath = path.join(promptsDir, 'prompts.json');
 const backupsPath = path.join(promptsDir, 'backups');
-
-// Secure storage for API keys
-const credentialsPath = path.join(userDataPath, 'credentials.enc');
-const fallbackCredentialsPath = path.join(userDataPath, 'credentials.json');
-const defaultGeminiModel = 'minimax/minimax-m3';
 
 const normalizeTopicKey = (topic) => {
   if (!topic) return 'general';
@@ -67,71 +62,6 @@ const getTopicBackupDir = (topic) => {
     fs.mkdirSync(dir, { recursive: true });
   }
   return dir;
-};
-
-const getEnvApiKey = () => process.env.OPENROUTER_API_KEY || process.env.GEMINI_API_KEY || process.env.API_KEY || null;
-
-const readFallbackApiKey = () => {
-  if (!fs.existsSync(fallbackCredentialsPath)) {
-    return null;
-  }
-
-  try {
-    const raw = fs.readFileSync(fallbackCredentialsPath, 'utf8');
-    const credentials = JSON.parse(raw);
-    if (typeof credentials?.geminiApiKey !== 'string') {
-      return null;
-    }
-    const trimmed = credentials.geminiApiKey.trim();
-    return trimmed || null;
-  } catch (error) {
-    console.error('Failed to read fallback API key storage:', error);
-    return null;
-  }
-};
-
-const writeFallbackApiKey = (apiKey) => {
-  fs.writeFileSync(
-    fallbackCredentialsPath,
-    JSON.stringify({ geminiApiKey: apiKey }, null, 2),
-    { mode: 0o600 }
-  );
-
-  // Enforce user-only permissions when supported by the platform.
-  try {
-    fs.chmodSync(fallbackCredentialsPath, 0o600);
-  } catch (error) {
-    if (process.platform !== 'win32') {
-      console.warn('Unable to set strict permissions on fallback credentials file:', error);
-    }
-  }
-};
-
-const readStoredApiKey = () => {
-  if (safeStorage.isEncryptionAvailable() && fs.existsSync(credentialsPath)) {
-    try {
-      const encryptedData = fs.readFileSync(credentialsPath);
-      const decrypted = safeStorage.decryptString(encryptedData);
-      const credentials = JSON.parse(decrypted);
-      return credentials.geminiApiKey || null;
-    } catch (error) {
-      console.error('Failed to read encrypted API key storage:', error);
-    }
-  }
-
-  return readFallbackApiKey();
-};
-
-const resolveApiKey = () => getEnvApiKey() || readStoredApiKey();
-
-const resolveModel = (model, image, useThinking) => {
-  if (image || useThinking) {
-    return defaultGeminiModel;
-  }
-  if (typeof model === 'string' && model.trim()) {
-    return model.trim();
-  }
-  return defaultGeminiModel;
 };
 
 const cleanupOldBackups = (dir) => {
@@ -293,79 +223,30 @@ ipcMain.handle('read-prompt-overrides', async () => {
   return readCustomPrompts();
 });
 
-ipcMain.handle('has-api-key', async () => {
+ipcMain.handle('check-codex', async () => {
   try {
-    return !!resolveApiKey();
+    return await checkCodexStatus();
   } catch (error) {
-    console.error('Failed to check API key status:', error);
-    return false;
-  }
-});
-
-ipcMain.handle('set-api-key', async (event, apiKey) => {
-  try {
-    if (!apiKey || typeof apiKey !== 'string' || !apiKey.trim()) {
-      return false;
-    }
-
-    const trimmedApiKey = apiKey.trim();
-
-    if (safeStorage.isEncryptionAvailable()) {
-      try {
-        const credentials = { geminiApiKey: trimmedApiKey };
-        const encrypted = safeStorage.encryptString(JSON.stringify(credentials));
-        fs.writeFileSync(credentialsPath, encrypted);
-        if (fs.existsSync(fallbackCredentialsPath)) {
-          fs.unlinkSync(fallbackCredentialsPath);
-        }
-        return true;
-      } catch (error) {
-        console.warn('Secure storage failed, using fallback file storage:', error);
-      }
-    } else {
-      console.warn('Secure storage not available on this system, using fallback file storage');
-    }
-
-    writeFallbackApiKey(trimmedApiKey);
-    return true;
-  } catch (error) {
-    console.error('Failed to save API key to secure storage:', error);
-    return false;
-  }
-});
-
-ipcMain.handle('clear-api-key', async () => {
-  try {
-    if (fs.existsSync(credentialsPath)) {
-      fs.unlinkSync(credentialsPath);
-    }
-    if (fs.existsSync(fallbackCredentialsPath)) {
-      fs.unlinkSync(fallbackCredentialsPath);
-    }
-    return true;
-  } catch (error) {
-    console.error('Failed to clear API key:', error);
-    return false;
+    console.error('Failed to check Codex status:', error);
+    return {
+      available: false,
+      authenticated: false,
+      message: error instanceof Error ? error.message : 'Unable to check Codex status.',
+    };
   }
 });
 
 ipcMain.handle('generate-cards', async (event, payload) => {
   try {
-    const apiKey = resolveApiKey();
-    if (!apiKey) {
-      throw new Error('Missing API key. Please add one in Settings.');
-    }
-
     const prompt = typeof payload?.prompt === 'string' ? payload.prompt : '';
     const image = typeof payload?.image === 'string' ? payload.image : null;
-    const model = resolveModel(payload?.model, image, payload?.useThinking);
     const useThinking = !!payload?.useThinking;
 
-    return await generateFlashcardsInMain({ prompt, model, image, useThinking }, apiKey);
+    return await generateFlashcardsInMain({ prompt, image, useThinking });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     if (process.env.NODE_ENV === 'development') {
-      console.error('Gemini generation failed:', error);
+      console.error('Codex generation failed:', error);
     }
     throw new Error(message);
   }
@@ -373,19 +254,13 @@ ipcMain.handle('generate-cards', async (event, payload) => {
 
 ipcMain.handle('amend-card', async (event, payload) => {
   try {
-    const apiKey = resolveApiKey();
-    if (!apiKey) {
-      throw new Error('Missing API key. Please add one in Settings.');
-    }
-
     const prompt = typeof payload?.prompt === 'string' ? payload.prompt : '';
-    const model = resolveModel(payload?.model, null, false);
 
-    return await amendFlashcardInMain({ prompt, model }, apiKey);
+    return await amendFlashcardInMain({ prompt });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     if (process.env.NODE_ENV === 'development') {
-      console.error('Gemini amendment failed:', error);
+      console.error('Codex amendment failed:', error);
     }
     throw new Error(message);
   }
