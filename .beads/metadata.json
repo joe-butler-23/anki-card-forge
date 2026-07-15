@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "anki_forge_app",
+  "project_id": "176fcf49-64e3-4dd0-889a-891001c43824"
+}
