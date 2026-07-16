@@ -2,6 +2,17 @@
 
 This project uses **bd** (beads) for issue tracking. Run `bd prime` for full workflow context.
 
+## Maintained MCP bridge safety invariants
+
+The maintained bridge lives in `mcp/server.mjs` and `mcp/anki-connect.mjs`.
+Human review is the authority: the bridge may write only the exact payload the
+user reviewed and approved. The one-time token binds `validate_reviewed_cards`
+to `add_reviewed_cards`, but it cannot prove that a UI performed the review or
+approval. AnkiConnect is HTTP on localhost only; the bridge never syncs
+AnkiWeb. The write step requires the unchanged reviewed deck, model, front, and
+back fields, and duplicate identities in one batch are rejected before any
+AnkiConnect write.
+
 > **Architecture in one line:** Issues live in a local Dolt database
 > (`.beads/dolt/`); cross-machine sync uses `bd dolt push/pull` (a
 > git-compatible protocol), stored under `refs/dolt/data` on your git

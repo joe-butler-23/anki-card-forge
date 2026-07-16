@@ -104,6 +104,28 @@ test('preflights the whole batch before a reviewed write', async () => {
   assert.ok(!actions.includes('addNotes'));
 });
 
+test('rejects duplicate novel notes before contacting AnkiConnect', async () => {
+  const actions = [];
+  const client = createAnkiConnectClient({
+    fetchImpl: async (_url, options) => {
+      actions.push(JSON.parse(options.body).action);
+      return jsonResponse([]);
+    },
+  });
+
+  await assert.rejects(
+    client.addReviewedNotes(
+      [
+        { modelName: 'Basic', front: 'novel front', back: 'first answer' },
+        { modelName: 'Basic', front: 'novel front', back: 'second answer' },
+      ],
+      'prob',
+    ),
+    /duplicate cards/,
+  );
+  assert.deepEqual(actions, []);
+});
+
 test('adds reviewed notes only after a successful preflight', async () => {
   const actions = [];
   const fetchImpl = async (_url, options) => {

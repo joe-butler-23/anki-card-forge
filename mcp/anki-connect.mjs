@@ -59,6 +59,27 @@ export function validateCard(card, index = 0) {
   }
 }
 
+function reviewedCardIdentity(card) {
+  return JSON.stringify([card.modelName, escapeCardText(card.front).trim()]);
+}
+
+function rejectDuplicateCards(cards) {
+  const seen = new Map();
+
+  for (const [index, card] of cards.entries()) {
+    const identity = reviewedCardIdentity(card);
+    const firstIndex = seen.get(identity);
+
+    if (firstIndex !== undefined) {
+      throw new Error(
+        `Reviewed batch contains duplicate cards at indexes ${firstIndex + 1} and ${index + 1}.`,
+      );
+    }
+
+    seen.set(identity, index);
+  }
+}
+
 export function createNote(card, deckName) {
   validateCard(card);
 
@@ -168,6 +189,7 @@ export function createAnkiConnectClient({
       }
 
       cards.forEach(validateCard);
+      rejectDuplicateCards(cards);
       const normalizedDeck = deckName.trim();
       const [decks, models] = await Promise.all([this.getDeckNames(), this.getModelNames()]);
 
