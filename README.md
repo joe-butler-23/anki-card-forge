@@ -122,7 +122,7 @@ With Anki running, the maintained smoke check exercises the MCP transport, conne
 npm run mcp:smoke
 ```
 
-Inline Codex visualizations cannot make network requests. A flashcard review visualization should keep edits local, then use `window.openai.sendFollowUpMessage` to return the exact approved deck, model, front, and back fields to Codex. Codex dry-runs that payload, receives a 15-minute one-time token bound to its exact contents, and invokes `add_reviewed_cards` with the unchanged payload. The write tool is deliberately declared non-idempotent so the user can approve the actual tool call. The server accepts only the Basic models, escapes HTML while preserving Anki MathJax delimiters, refuses unknown decks or duplicate-invalid batches, and never triggers AnkiWeb sync.
+Inline Codex visualizations cannot make network requests. A flashcard review visualization should keep edits local, then use `window.openai.sendFollowUpMessage` to return the exact approved deck, model, front, and back fields to Codex. The learner's explicit review action is the human gate. Codex dry-runs that payload, receives a 15-minute one-time token bound to its exact contents, and invokes `add_reviewed_cards` with the unchanged payload. The write tool is declared non-idempotent for accurate client presentation; that annotation does not replace review. The server accepts only the Basic models, escapes HTML while preserving Anki MathJax delimiters, refuses unknown decks or duplicate-invalid batches, and never triggers AnkiWeb sync.
 
 ## Privacy & Security
 
