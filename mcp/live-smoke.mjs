@@ -56,6 +56,10 @@ try {
     throw new Error('Anki read-only card validation failed.');
   }
 
+  if (typeof validation.structuredContent?.approvalToken !== 'string') {
+    throw new Error('Reviewed-card validation did not return a one-time approval token.');
+  }
+
   process.stdout.write(
     `${JSON.stringify({ tools: names, ankiVersion: 6, decks, dryRunOnly: true }, null, 2)}\n`,
   );

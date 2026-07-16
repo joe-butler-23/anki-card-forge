@@ -7,6 +7,7 @@ import {
   normalizeAnkiConnectUrl,
   validateCard,
 } from '../mcp/anki-connect.mjs';
+import { createReviewApprovalStore, reviewedPayloadDigest } from '../mcp/review-approval.mjs';
 
 function jsonResponse(result, error = null, status = 200) {
   return {
@@ -131,4 +132,32 @@ test('fails closed on malformed AnkiConnect envelopes', async () => {
     fetchImpl: async () => ({ ok: true, status: 200, async json() { return { value: 6 }; } }),
   });
   await assert.rejects(client.checkConnection(), /invalid response envelope/);
+});
+
+test('binds a one-time approval token to the exact reviewed payload', () => {
+  const cards = [{ modelName: 'Basic', front: 'front', back: 'back' }];
+  const store = createReviewApprovalStore({
+    now: () => 1_000,
+    createToken: () => 'token',
+  });
+  store.issue('prob', cards);
+
+  assert.throws(() => store.consume('token', 'prob', [{ ...cards[0], back: 'changed' }]), /changed/);
+  store.consume('token', 'prob', cards);
+  assert.throws(() => store.consume('token', 'prob', cards), /already been used/);
+  assert.notEqual(reviewedPayloadDigest('prob', cards), reviewedPayloadDigest('other', cards));
+});
+
+test('expires reviewed-card approval tokens', () => {
+  let currentTime = 1_000;
+  const cards = [{ modelName: 'Basic', front: 'front', back: 'back' }];
+  const store = createReviewApprovalStore({
+    ttlMs: 100,
+    now: () => currentTime,
+    createToken: () => 'token',
+  });
+  store.issue('prob', cards);
+  currentTime = 1_101;
+
+  assert.throws(() => store.consume('token', 'prob', cards), /expired/);
 });

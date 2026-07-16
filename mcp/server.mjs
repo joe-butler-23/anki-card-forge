@@ -5,6 +5,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import * as z from 'zod/v4';
 import { createAnkiConnectClient } from './anki-connect.mjs';
+import { createReviewApprovalStore } from './review-approval.mjs';
 
 const cardSchema = z.object({
   modelName: z.enum(['Basic', 'Basic (type in the answer)']).default('Basic'),
@@ -30,12 +31,15 @@ function failure(error) {
   return toolResult({ ok: false, error: message }, message, true);
 }
 
-export function createServer({ ankiClient = createAnkiConnectClient() } = {}) {
+export function createServer({
+  ankiClient = createAnkiConnectClient(),
+  approvalStore = createReviewApprovalStore(),
+} = {}) {
   const server = new McpServer(
     { name: 'anki-card-forge', version: '1.0.0' },
     {
       instructions:
-        'Generate and review cards in the conversation or Card Forge UI. Only call add_reviewed_cards after the user has inspected and explicitly approved the exact deck, model, front, and back fields. This server never syncs AnkiWeb.',
+        'Generate and review cards in the conversation or Card Forge UI. After the user approves the exact deck, model, front, and back fields, call validate_reviewed_cards, then pass its one-time token with the unchanged payload to add_reviewed_cards. This server never syncs AnkiWeb.',
     },
   );
 
@@ -93,7 +97,7 @@ export function createServer({ ankiClient = createAnkiConnectClient() } = {}) {
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
-        idempotentHint: true,
+        idempotentHint: false,
         openWorldHint: false,
       },
     },
@@ -106,8 +110,15 @@ export function createServer({ ankiClient = createAnkiConnectClient() } = {}) {
           cardCount: cards.length,
           canAdd,
         };
+        if (structured.ok) {
+          const approval = approvalStore.issue(deckName, cards);
+          Object.assign(structured, {
+            approvalToken: approval.token,
+            approvalExpiresAt: new Date(approval.expiresAt).toISOString(),
+          });
+        }
         const summary = structured.ok
-          ? `All ${cards.length} reviewed card(s) can be added to ${deckName}.`
+          ? `All ${cards.length} reviewed card(s) can be added to ${deckName}. The one-time approval token expires in 15 minutes.`
           : `Validation failed for card indexes ${canAdd.flatMap((allowed, index) => (allowed ? [] : [index])).join(', ')}.`;
         return toolResult(structured, summary, !structured.ok);
       } catch (error) {
@@ -124,7 +135,7 @@ export function createServer({ ankiClient = createAnkiConnectClient() } = {}) {
         'Add the exact cards the user has already reviewed and approved. Never call this for drafts or inferred content. This is a non-idempotent local write and does not run AnkiWeb sync.',
       inputSchema: {
         ...cardsInputSchema,
-        reviewed: z.literal(true).describe('Confirms the user explicitly approved this exact payload.'),
+        approvalToken: z.string().uuid().describe('One-time token returned by validate_reviewed_cards.'),
       },
       annotations: {
         readOnlyHint: false,
@@ -133,12 +144,9 @@ export function createServer({ ankiClient = createAnkiConnectClient() } = {}) {
         openWorldHint: false,
       },
     },
-    async ({ deckName, cards, reviewed }) => {
-      if (reviewed !== true) {
-        return toolResult({ ok: false, error: 'Explicit review is required.' }, 'Explicit review is required.', true);
-      }
-
+    async ({ deckName, cards, approvalToken }) => {
       try {
+        approvalStore.consume(approvalToken, deckName, cards);
         const noteIds = await ankiClient.addReviewedNotes(cards, deckName);
         return toolResult(
           { ok: true, deckName, cardCount: cards.length, noteIds },
