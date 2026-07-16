@@ -2,6 +2,7 @@ import React from 'react';
 import { Download, Send } from 'lucide-react';
 import { Flashcard } from '../../types';
 import { sanitizeCardHtml } from '../../utils/sanitizeHtml';
+import { getApprovedCards } from '../../reviewState';
 
 interface FinalizeStepProps {
   cards: Flashcard[];
@@ -12,10 +13,6 @@ interface FinalizeStepProps {
   onConnect: () => void;
 }
 
-function getValidCards(cards: Flashcard[]): Flashcard[] {
-  return cards.filter((card) => !card.isDeleted);
-}
-
 export function FinalizeStep({
   cards,
   isConnected,
@@ -24,7 +21,7 @@ export function FinalizeStep({
   onSync,
   onConnect,
 }: FinalizeStepProps): React.JSX.Element {
-  const validCards = getValidCards(cards);
+  const validCards = getApprovedCards(cards);
 
   return (
     <div className="max-w-3xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4">

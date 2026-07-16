@@ -11,6 +11,7 @@ import { SetupStep } from './components/steps/SetupStep';
 import { addNotesToAnki, checkConnection, getDeckNames, pingAnki, setAnkiUrl } from './services/ankiConnectService';
 import { AIResponseValidationError, amendFlashcard, CodexAPIError, generateFlashcards, JSONParseError } from './services/codexService';
 import { AppStep, CodexStatus, Flashcard, Topic } from './types';
+import { getNextPendingIndex, REVIEW_STATUS, updateReviewStatus } from './reviewState';
 
 function getErrorMessage(error: unknown, fallbackMessage: string): string {
   return error instanceof Error ? error.message : fallbackMessage;
@@ -240,17 +241,17 @@ function App(): React.JSX.Element {
       setIsEditing(false);
     }
 
-    if (action === 'reject') {
-      setGeneratedCards((cards) =>
-        updateCardAtIndex(cards, currentCardIndex, (card) => ({
-          ...card,
-          isDeleted: true,
-        })),
-      );
-    }
+    const nextCards = updateReviewStatus(
+      generatedCards,
+      currentCardIndex,
+      action === 'accept' ? REVIEW_STATUS.Approved : REVIEW_STATUS.Rejected,
+    );
+    const nextPendingIndex = getNextPendingIndex(nextCards, currentCardIndex);
 
-    if (currentCardIndex < generatedCards.length - 1) {
-      setCurrentCardIndex((index) => index + 1);
+    setGeneratedCards(nextCards);
+
+    if (nextPendingIndex >= 0) {
+      setCurrentCardIndex(nextPendingIndex);
     } else {
       setStep(AppStep.Finalizing);
     }
@@ -293,6 +294,7 @@ function App(): React.JSX.Element {
       updateCardAtIndex(cards, currentCardIndex, (card) => ({
         ...card,
         [field]: value,
+        reviewStatus: REVIEW_STATUS.Pending,
       })),
     );
   }

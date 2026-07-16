@@ -1,4 +1,5 @@
 import { Flashcard, GenerateFlashcardsPayload, Topic } from '../types';
+import { REVIEW_STATUS } from '../reviewState';
 import { TOPIC_PROMPTS } from '../prompts/topics';
 import { AIResponseValidationError, validateFlashcardResponse, validateSingleFlashcard } from '../validation/flashcardSchema';
 
@@ -132,6 +133,7 @@ function withFlashcardIds(cards: ReturnType<typeof validateFlashcardResponse>): 
   return cards.map((card) => ({
     ...card,
     id: crypto.randomUUID(),
+    reviewStatus: REVIEW_STATUS.Pending,
   }));
 }
 
@@ -187,6 +189,7 @@ export async function amendFlashcard(
     return {
       ...validatedCard,
       id: card.id,
+      reviewStatus: REVIEW_STATUS.Pending,
     };
   } catch (error) {
     if (import.meta.env.DEV) {

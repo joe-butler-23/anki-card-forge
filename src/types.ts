@@ -1,3 +1,5 @@
+import type { ReviewStatus } from './reviewState';
+
 export enum AppStep {
   Setup = 'setup',
   Generating = 'generating',
@@ -17,7 +19,7 @@ export interface Flashcard {
   cardType: CardType;
   front: string;
   back: string;
-  isDeleted?: boolean;
+  reviewStatus: ReviewStatus;
 }
 
 export enum Topic {

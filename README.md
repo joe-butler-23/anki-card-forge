@@ -100,6 +100,30 @@ I run Nix, so have been using the `flake.nix` to develop it. The **[docs/DEPLOYM
 5.  **Review**: A list of generated cards will appear. Review, edit, or reject each card as needed.
 6.  **Sync**: Click the sync button to send all approved cards directly to your selected Anki deck.
 
+## Codex MCP Bridge
+
+The repository also contains a narrow local MCP server for study sessions run in Codex Desktop or the Codex CLI. It does not replace the Card Forge review interface or generate cards. It gives Codex four constrained AnkiConnect operations:
+
+- check the local connection;
+- list decks;
+- dry-run an exact reviewed payload with `canAddNotes`; and
+- add an exact reviewed payload after explicit user approval.
+
+Install the repository dependencies, then register the server with the shared Codex MCP configuration:
+
+```bash
+codex mcp add anki-card-forge -- node /absolute/path/to/anki-card-forge/mcp/server.mjs
+codex mcp list
+```
+
+With Anki running, the maintained smoke check exercises the MCP transport, connection, deck lookup, and `canAddNotes` path without adding a note:
+
+```bash
+npm run mcp:smoke
+```
+
+Inline Codex visualizations cannot make network requests. A flashcard review visualization should keep edits local, then use `window.openai.sendFollowUpMessage` to return the exact approved deck, model, front, and back fields to Codex. Codex can dry-run that payload and invoke `add_reviewed_cards`; the write tool is deliberately declared non-idempotent so the user can approve the actual tool call. The server accepts only the Basic models, escapes HTML while preserving Anki MathJax delimiters, refuses unknown decks or duplicate-invalid batches, and never triggers AnkiWeb sync.
+
 ## Privacy & Security
 
 Bearing in mind the warnings about the API generated content above, the app uses the following approaches to reduce risk (without any guarantees):
@@ -107,6 +131,8 @@ Bearing in mind the warnings about the API generated content above, the app uses
 - **No Provider Secret Storage**: The app uses your existing local Codex CLI login instead of storing a separate model-provider key.
 - **No Model Calls in Renderer**: Codex CLI calls are executed in the Electron main process.
 - **HTML Sanitization**: AI-generated content is sanitized with `DOMPurify` before rendering and before syncing to Anki.
+- **Explicit Review State**: Only cards marked approved can cross the app's Anki sync boundary; editing or amending a card returns it to pending review.
+- **Local MCP Boundary**: The optional MCP server accepts only localhost AnkiConnect URLs and exposes its only mutation as a reviewed, non-idempotent write.
 - **Local Asset Loading**: MathJax is bundled locally to avoid remote script execution.
 - **CSP in Renderer**: A restrictive Content Security Policy limits script, connection, and asset sources.
 

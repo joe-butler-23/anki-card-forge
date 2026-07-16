@@ -1,6 +1,7 @@
 import { ANKI_CONNECT_URL_FALLBACK, ANKI_CONNECT_URL_PRIMARY } from '../constants';
 import { AnkiConnectResponse, CardType, Flashcard } from '../types';
 import { sanitizeCardHtml } from '../utils/sanitizeHtml';
+import { getApprovedCards } from '../reviewState';
 
 const isDev = import.meta.env.DEV;
 
@@ -154,7 +155,7 @@ export async function addNotesToAnki(cards: Flashcard[], deckName: string): Prom
     console.log('[Debug] Preparing to add notes to Anki. Processing cards...');
   }
 
-  const notes = cards.filter((card) => !card.isDeleted).map((card) => createNote(card, deckName));
+  const notes = getApprovedCards(cards).map((card) => createNote(card, deckName));
 
   if (notes.length === 0) {
     if (isDev) {
