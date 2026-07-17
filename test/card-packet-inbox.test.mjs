@@ -36,6 +36,15 @@ test('uses the per-user Linux runtime directory when XDG_RUNTIME_DIR is missing'
   assert.equal(
     getCardPacketSocketPath({
       env: {},
+      platform: 'linux',
+      tmpdir: () => '/tmp',
+      uid: 1001,
+    }),
+    '/run/user/1001/anki-card-forge/card-packets.sock',
+  );
+  assert.equal(
+    getCardPacketSocketPath({
+      env: {},
       platform: 'darwin',
       tmpdir: () => '/tmp',
       uid: 1000,
