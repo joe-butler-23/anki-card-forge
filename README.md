@@ -102,12 +102,16 @@ I run Nix, so have been using the `flake.nix` to develop it. The **[docs/DEPLOYM
 
 ## Codex MCP Bridge
 
-The repository also contains a narrow local MCP server for study sessions run in Codex Desktop or the Codex CLI. It does not replace the Card Forge review interface or generate cards. It gives Codex four constrained AnkiConnect operations:
+The repository also contains a narrow local MCP app for study sessions run in Codex Desktop. It does not generate cards. It gives Codex eight constrained operations:
 
 - check the local connection;
 - list decks;
+- render the Card Forge review interface for a proposed card set;
 - dry-run an exact reviewed payload with `canAddNotes` and issue a short-lived token bound to that payload; and
-- add that unchanged payload once, after explicit user approval.
+- add that unchanged payload once, after explicit user approval;
+- check whether the desktop Card Forge inbox is ready;
+- queue candidate cards in the desktop review interface; and
+- read the resulting review or Anki-send receipt.
 
 Install the repository dependencies, then register the server with the shared Codex MCP configuration:
 
@@ -116,13 +120,15 @@ codex mcp add anki-card-forge -- node /absolute/path/to/anki-card-forge/mcp/serv
 codex mcp list
 ```
 
-With Anki running, the maintained smoke check exercises the MCP transport, connection, deck lookup, and `canAddNotes` path without adding a note:
+With Anki running, the maintained smoke check exercises the MCP transport, widget resource, connection, deck lookup, and `canAddNotes` path without adding a note:
 
 ```bash
 npm run mcp:smoke
 ```
 
-Inline Codex visualizations cannot make network requests. A flashcard review visualization should keep edits local, then use `window.openai.sendFollowUpMessage` to return the exact approved deck, model, front, and back fields to Codex. The learner's explicit review action is the human gate. Codex dry-runs that payload, receives a 15-minute one-time token bound to its exact contents, and invokes `add_reviewed_cards` with the unchanged payload. The write tool is declared non-idempotent for accurate client presentation; that annotation does not replace review. The server accepts only the Basic models, escapes HTML while preserving Anki MathJax delimiters, refuses unknown decks or duplicate-invalid batches, and never triggers AnkiWeb sync.
+Call `review_cards` with the proposed card fields to open the embedded Card Forge interface. The learner can edit, reject, and approve cards there. Its final **Add approved cards to Anki** action calls `validate_reviewed_cards` and then `add_reviewed_cards` directly through the MCP Apps bridge, without posting a follow-up prompt or requiring another agent turn. The one-time token binds the write to the unchanged reviewed deck, model, front, and back fields. The target deck is fixed to `prob`. The server accepts only the Basic models, preserves a strict safe subset of Anki HTML plus MathJax, refuses unknown decks or duplicate-invalid batches, and never triggers AnkiWeb sync.
+
+For persistent desktop review, start the Electron app and call `send_cards_to_electron`. The MCP server and Electron app communicate through a per-user Unix socket under the Linux runtime directory, so separate login profiles cannot consume each other's packets. Candidate cards remain review-only until the learner sends them from Card Forge.
 
 ## Privacy & Security
 

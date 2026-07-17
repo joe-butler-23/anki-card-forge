@@ -1,0 +1,579 @@
+<div id="anki-card-forge-polished">
+  <style>
+    #anki-card-forge-polished {
+      --foreground: #20242c;
+      --muted-foreground: #667085;
+      --background: #f7f7f8;
+      --card: #ffffff;
+      --muted: #eceef2;
+      --border: #d9dce3;
+      --primary: #202123;
+      --primary-foreground: #ffffff;
+      --viz-series-1: #7c8ce8;
+      --viz-series-2: #5eb9a8;
+      width: 100%;
+      box-sizing: border-box;
+      padding: 16px;
+      color: var(--foreground);
+      background: var(--background);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+    }
+    #anki-card-forge-polished *,
+    #anki-card-forge-polished *::before,
+    #anki-card-forge-polished *::after { box-sizing: border-box; }
+    #anki-card-forge-polished [hidden] { display: none !important; }
+    #anki-card-forge-polished .card { padding: 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--card); box-shadow: 0 1px 2px rgb(16 24 40 / 0.04); }
+    #anki-card-forge-polished .btn { display: inline-flex; min-height: 40px; align-items: center; justify-content: center; gap: 8px; padding: 9px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); color: var(--foreground); font: inherit; font-weight: 600; cursor: pointer; }
+    #anki-card-forge-polished .btn:hover:not(:disabled) { background: var(--muted); }
+    #anki-card-forge-polished .btn:disabled { cursor: not-allowed; opacity: 0.48; }
+    #anki-card-forge-polished .btn-primary { border-color: var(--primary); background: var(--primary); color: var(--primary-foreground); }
+    #anki-card-forge-polished .btn-primary:hover:not(:disabled) { background: #34363a; }
+    #anki-card-forge-polished .btn-ghost { min-width: 36px; min-height: 36px; padding: 6px; border-color: transparent; background: transparent; }
+    #anki-card-forge-polished .btn-block { width: 100%; }
+    #anki-card-forge-polished .btn i { display: none; }
+    #anki-card-forge-polished .form-label { color: var(--foreground); font-size: 0.875rem; font-weight: 600; }
+    #anki-card-forge-polished .form-control { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); color: var(--foreground); font: inherit; resize: vertical; }
+    #anki-card-forge-polished .form-control:focus { outline: 2px solid color-mix(in srgb, var(--viz-series-1) 55%, transparent); outline-offset: 1px; }
+    #anki-card-forge-polished .form-control[readonly] { background: var(--muted); }
+    #anki-card-forge-polished .text-small { font-size: 0.875rem; }
+    #anki-card-forge-polished .text-muted { color: var(--muted-foreground); }
+    #anki-card-forge-polished .forge-loading { max-width: 680px; margin: 0 auto; text-align: center; }
+    #anki-card-forge-polished .forge-review { display: grid; gap: 16px; }
+    #anki-card-forge-polished .forge-review-header,
+    #anki-card-forge-polished .forge-review-title,
+    #anki-card-forge-polished .forge-progress,
+    #anki-card-forge-polished .forge-section-title,
+    #anki-card-forge-polished .forge-final-actions { display: flex; align-items: center; }
+    #anki-card-forge-polished .forge-review-header { justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    #anki-card-forge-polished .forge-review-title { gap: 8px; font-weight: 500; }
+    #anki-card-forge-polished .forge-progress { gap: 10px; }
+    #anki-card-forge-polished .forge-progress-track { width: 82px; height: 7px; border-radius: 999px; overflow: hidden; background: var(--muted); }
+    #anki-card-forge-polished .forge-progress-fill { width: 50%; height: 100%; background: var(--primary); transition: width 160ms ease; }
+    #anki-card-forge-polished .forge-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    #anki-card-forge-polished .forge-card-panel { display: grid; grid-template-rows: auto 1fr; gap: 14px; min-height: 250px; }
+    #anki-card-forge-polished .forge-front-pane { background: color-mix(in srgb, var(--card) 88%, var(--viz-series-1) 12%); }
+    #anki-card-forge-polished .forge-back-pane { background: color-mix(in srgb, var(--card) 88%, var(--viz-series-2) 12%); }
+    #anki-card-forge-polished .forge-card-label { display: flex; align-items: center; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid var(--border); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 500; }
+    #anki-card-forge-polished .forge-label-mark { width: 7px; height: 7px; border-radius: 999px; flex: 0 0 auto; }
+    #anki-card-forge-polished .forge-label-front { background: var(--viz-series-1); }
+    #anki-card-forge-polished .forge-label-back { background: var(--viz-series-2); }
+    #anki-card-forge-polished .forge-card-content { white-space: pre-wrap; overflow-wrap: anywhere; }
+    #anki-card-forge-polished .forge-math-block { margin: 8px 0; overflow-wrap: normal; overflow-x: auto; }
+    #anki-card-forge-polished .forge-math-inline { white-space: nowrap; }
+    #anki-card-forge-polished .forge-card-content br + br { display: block; content: ""; margin-top: 10px; }
+    #anki-card-forge-polished .forge-actions,
+    #anki-card-forge-polished .forge-refine { display: grid; gap: 10px; }
+    #anki-card-forge-polished .forge-section-title { gap: 8px; font-weight: 500; }
+    #anki-card-forge-polished .forge-amend { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; }
+    #anki-card-forge-polished .forge-field { display: grid; gap: 6px; }
+    #anki-card-forge-polished .forge-final { display: grid; gap: 16px; }
+    #anki-card-forge-polished .forge-final-heading { text-align: center; }
+    #anki-card-forge-polished .forge-summary { display: grid; grid-template-columns: 1fr 1.25fr; gap: 16px; }
+    #anki-card-forge-polished .forge-summary-cell { min-width: 0; overflow-wrap: anywhere; }
+    #anki-card-forge-polished .forge-summary-entry + .forge-summary-entry { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+    #anki-card-forge-polished .forge-final-actions { justify-content: center; flex-wrap: wrap; gap: 10px; }
+    #anki-card-forge-polished .forge-result { text-align: center; min-height: 20px; }
+    @media (max-width: 560px) {
+      #anki-card-forge-polished .forge-card-grid,
+      #anki-card-forge-polished .forge-summary { grid-template-columns: 1fr; }
+      #anki-card-forge-polished .forge-card-panel { min-height: 0; }
+    }
+    @media (prefers-color-scheme: dark) {
+      #anki-card-forge-polished {
+        --foreground: #f1f3f5;
+        --muted-foreground: #aeb4bf;
+        --background: #17181b;
+        --card: #222429;
+        --muted: #2d3036;
+        --border: #3b3f47;
+        --primary: #f1f3f5;
+        --primary-foreground: #17181b;
+      }
+      #anki-card-forge-polished .btn-primary:hover:not(:disabled) { background: #d9dde3; }
+    }
+  </style>
+
+  <template id="forge-polished-h-math">
+    <math xmlns="http://www.w3.org/1998/Math/MathML" aria-label="H"><mi>H</mi></math>
+  </template>
+  <template id="forge-polished-t-math">
+    <math xmlns="http://www.w3.org/1998/Math/MathML" aria-label="T"><mi>T</mi></math>
+  </template>
+  <template id="forge-polished-ht-math">
+    <math xmlns="http://www.w3.org/1998/Math/MathML" aria-label="H T"><mrow><mi>H</mi><mi>T</mi></mrow></math>
+  </template>
+  <template id="forge-polished-event-math">
+    <math xmlns="http://www.w3.org/1998/Math/MathML" display="block" aria-label="the set H T, T H">
+      <mrow><mo>{</mo><mi>H</mi><mi>T</mi><mo>,</mo><mi>T</mi><mi>H</mi><mo>}</mo></mrow>
+    </math>
+  </template>
+  <template id="forge-polished-probability-math">
+    <math xmlns="http://www.w3.org/1998/Math/MathML" display="block" aria-label="Zero heads has probability one quarter; one head has probability one half; two heads has probability one quarter">
+      <mtable columnalign="left left" columnspacing="1.5em" rowspacing="0.65em">
+        <mtr><mtd><mrow><mn>0</mn><mtext> heads = </mtext><mo>{</mo><mi>T</mi><mi>T</mi><mo>}</mo><mo>,</mo></mrow></mtd><mtd><mrow><mi>P</mi><mo>(</mo><mn>0</mn><mtext> heads</mtext><mo>)</mo><mo>=</mo><mfrac><mn>1</mn><mn>4</mn></mfrac></mrow></mtd></mtr>
+        <mtr><mtd><mrow><mn>1</mn><mtext> head = </mtext><mo>{</mo><mi>H</mi><mi>T</mi><mo>,</mo><mi>T</mi><mi>H</mi><mo>}</mo><mo>,</mo></mrow></mtd><mtd><mrow><mi>P</mi><mo>(</mo><mn>1</mn><mtext> head</mtext><mo>)</mo><mo>=</mo><mfrac><mn>2</mn><mn>4</mn></mfrac><mo>=</mo><mfrac><mn>1</mn><mn>2</mn></mfrac></mrow></mtd></mtr>
+        <mtr><mtd><mrow><mn>2</mn><mtext> heads = </mtext><mo>{</mo><mi>H</mi><mi>H</mi><mo>}</mo><mo>,</mo></mrow></mtd><mtd><mrow><mi>P</mi><mo>(</mo><mn>2</mn><mtext> heads</mtext><mo>)</mo><mo>=</mo><mfrac><mn>1</mn><mn>4</mn></mfrac></mrow></mtd></mtr>
+      </mtable>
+    </math>
+  </template>
+
+  <section id="forge-polished-loading" class="card forge-loading" aria-live="polite">
+    Loading the proposed cards…
+  </section>
+
+  <section id="forge-polished-review" class="forge-review" aria-labelledby="forge-polished-title" hidden>
+    <div class="forge-review-header">
+      <div class="forge-review-title" id="forge-polished-title">
+        <button type="button" class="btn btn-ghost" id="forge-polished-previous" disabled aria-label="Previous card"><i data-lucide="chevron-left" aria-hidden="true"></i></button>
+        <span id="forge-polished-counter">Reviewing Card 1 / 2</span>
+        <button type="button" class="btn btn-ghost" id="forge-polished-next" aria-label="Next card"><i data-lucide="chevron-right" aria-hidden="true"></i></button>
+      </div>
+      <div class="forge-progress">
+        <span class="text-small text-muted">Progress</span>
+        <div class="forge-progress-track" id="forge-polished-progress" role="progressbar" aria-label="Card review progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50">
+          <div class="forge-progress-fill" id="forge-polished-progress-fill"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="forge-card-grid">
+      <section class="card forge-card-panel forge-front-pane" aria-labelledby="forge-polished-front-label">
+        <div class="forge-card-label" id="forge-polished-front-label">
+          <span class="forge-label-mark forge-label-front" aria-hidden="true"></span>
+          <span>Front / Question</span>
+        </div>
+        <div id="forge-polished-front-preview" class="forge-card-content"></div>
+        <textarea id="forge-polished-front-edit" class="form-control" rows="8" hidden></textarea>
+      </section>
+
+      <section class="card forge-card-panel forge-back-pane" aria-labelledby="forge-polished-back-label">
+        <div class="forge-card-label" id="forge-polished-back-label">
+          <span class="forge-label-mark forge-label-back" aria-hidden="true"></span>
+          <span>Back / Answer</span>
+        </div>
+        <div id="forge-polished-back-preview" class="forge-card-content" aria-label="Card answer preview"></div>
+        <textarea id="forge-polished-back-edit" class="form-control" rows="8" hidden></textarea>
+      </section>
+    </div>
+
+    <section class="card forge-actions" aria-label="Card decision">
+      <button type="button" class="btn btn-primary btn-block" id="forge-polished-approve">
+        <i data-lucide="circle-check" aria-hidden="true"></i>
+        <span id="forge-polished-approve-label">Approve &amp; Next</span>
+      </button>
+      <button type="button" class="btn btn-block" id="forge-polished-reject">
+        <i data-lucide="trash-2" aria-hidden="true"></i>
+        <span id="forge-polished-reject-label">Reject Card</span>
+      </button>
+    </section>
+
+    <section class="card forge-refine" aria-labelledby="forge-polished-refine-title">
+      <div class="forge-section-title" id="forge-polished-refine-title">
+        <i data-lucide="pencil" aria-hidden="true"></i>
+        <span>Refine</span>
+      </div>
+      <button type="button" class="btn btn-block" id="forge-polished-edit-toggle">Manual Edit</button>
+      <div class="forge-amend">
+        <label class="forge-field form-label" for="forge-polished-amend">AI Amendment Instruction
+          <input id="forge-polished-amend" class="form-control" type="text" placeholder="Use Manual Edit for this validation test" disabled>
+        </label>
+        <button type="button" class="btn" id="forge-polished-amend-button" aria-label="Apply amendment" disabled>
+          <i data-lucide="wand-sparkles" aria-hidden="true"></i>
+        </button>
+      </div>
+    </section>
+  </section>
+
+  <section id="forge-polished-final" class="forge-final" aria-labelledby="forge-polished-final-title" hidden>
+    <div class="forge-final-heading">
+      <h3 id="forge-polished-final-title">Ready to Add</h3>
+      <span class="text-small text-muted" id="forge-polished-final-count">You have reviewed 2 cards.</span>
+    </div>
+    <section class="card forge-summary" aria-label="Approved card">
+      <div class="forge-summary-cell">
+        <span class="text-small">Front</span>
+        <div id="forge-polished-summary-front"></div>
+      </div>
+      <div class="forge-summary-cell">
+        <span class="text-small">Back</span>
+        <div id="forge-polished-summary-back"></div>
+      </div>
+    </section>
+    <label class="forge-field form-label" for="forge-polished-deck">Target Deck
+      <input id="forge-polished-deck" class="form-control" type="text" value="prob" readonly>
+    </label>
+    <div class="forge-final-actions">
+      <button type="button" class="btn" id="forge-polished-back">Back to review</button>
+      <button type="button" class="btn btn-primary" id="forge-polished-sync">
+        <i data-lucide="send" aria-hidden="true"></i>
+        Add approved cards to Anki
+      </button>
+    </div>
+    <div id="forge-polished-result" class="forge-result text-small text-muted" aria-live="polite">Review every draft before adding it.</div>
+  </section>
+
+  <script>
+    (() => {
+      const root = document.getElementById("anki-card-forge-polished");
+      const loading = root.querySelector("#forge-polished-loading");
+      const review = root.querySelector("#forge-polished-review");
+      const finalView = root.querySelector("#forge-polished-final");
+      const frontPreview = root.querySelector("#forge-polished-front-preview");
+      const backPreview = root.querySelector("#forge-polished-back-preview");
+      const frontEdit = root.querySelector("#forge-polished-front-edit");
+      const backEdit = root.querySelector("#forge-polished-back-edit");
+      const editToggle = root.querySelector("#forge-polished-edit-toggle");
+      const approve = root.querySelector("#forge-polished-approve");
+      const reject = root.querySelector("#forge-polished-reject");
+      const approveLabel = root.querySelector("#forge-polished-approve-label");
+      const rejectLabel = root.querySelector("#forge-polished-reject-label");
+      const previousButton = root.querySelector("#forge-polished-previous");
+      const nextButton = root.querySelector("#forge-polished-next");
+      const counter = root.querySelector("#forge-polished-counter");
+      const progress = root.querySelector("#forge-polished-progress");
+      const progressFill = root.querySelector("#forge-polished-progress-fill");
+      const summaryFront = root.querySelector("#forge-polished-summary-front");
+      const summaryBack = root.querySelector("#forge-polished-summary-back");
+      const finalCount = root.querySelector("#forge-polished-final-count");
+      const deck = root.querySelector("#forge-polished-deck");
+      const backButton = root.querySelector("#forge-polished-back");
+      const syncButton = root.querySelector("#forge-polished-sync");
+      const result = root.querySelector("#forge-polished-result");
+      const hMathTemplate = root.querySelector("#forge-polished-h-math");
+      const tMathTemplate = root.querySelector("#forge-polished-t-math");
+      const htMathTemplate = root.querySelector("#forge-polished-ht-math");
+      const eventMathTemplate = root.querySelector("#forge-polished-event-math");
+      const probabilityMathTemplate = root.querySelector("#forge-polished-probability-math");
+      let cards = [];
+      let currentIndex = -1;
+      let editing = false;
+      let writing = false;
+      let rpcId = 0;
+      const pendingRequests = new Map();
+
+      function rpcNotify(method, params) {
+        window.parent.postMessage({ jsonrpc: "2.0", method, params }, "*");
+      }
+
+      function rpcRequest(method, params) {
+        return new Promise((resolve, reject) => {
+          const id = ++rpcId;
+          pendingRequests.set(id, { resolve, reject });
+          window.parent.postMessage({ jsonrpc: "2.0", id, method, params }, "*");
+        });
+      }
+
+      window.addEventListener("message", (event) => {
+        if (event.source !== window.parent) return;
+        const message = event.data;
+        if (!message || message.jsonrpc !== "2.0") return;
+
+        if (typeof message.id === "number") {
+          const pending = pendingRequests.get(message.id);
+          if (!pending) return;
+          pendingRequests.delete(message.id);
+          if (message.error) pending.reject(message.error);
+          else pending.resolve(message.result);
+          return;
+        }
+
+        if (message.method === "ui/notifications/tool-result") {
+          acceptReviewPayload(message.params?.structuredContent);
+        }
+      }, { passive: true });
+
+      async function initializeBridge() {
+        await rpcRequest("ui/initialize", {
+          appInfo: { name: "anki-card-forge-review", version: "1.0.0" },
+          appCapabilities: {},
+          protocolVersion: "2026-01-26"
+        });
+        rpcNotify("ui/notifications/initialized", {});
+      }
+
+      const bridgeReady = initializeBridge();
+
+      async function callTool(name, argumentsPayload) {
+        try {
+          await bridgeReady;
+          return await rpcRequest("tools/call", { name, arguments: argumentsPayload });
+        } catch (bridgeError) {
+          if (window.openai?.callTool) {
+            return window.openai.callTool(name, argumentsPayload);
+          }
+          throw bridgeError;
+        }
+      }
+
+      function acceptReviewPayload(payload) {
+        if (cards.length || !payload || payload.deckName !== "prob" || !Array.isArray(payload.cards)) {
+          return;
+        }
+        const received = payload.cards
+          .filter((card) => card && typeof card.front === "string" && typeof card.back === "string")
+          .map((card) => ({
+            front: card.front,
+            back: card.back,
+            modelName: card.modelName || "Basic",
+            status: "pending"
+          }));
+        if (!received.length) {
+          loading.textContent = "No candidate cards were supplied.";
+          return;
+        }
+        cards = received;
+        deck.value = "prob";
+        loading.hidden = true;
+        review.hidden = false;
+        loadCard(0);
+      }
+
+      const allowedCardTags = new Set([
+        "B", "I", "EM", "STRONG", "CODE", "PRE", "SUP", "SUB", "BR", "HR",
+        "P", "DIV", "SPAN", "UL", "OL", "LI"
+      ]);
+      const blockedCardTags = new Set([
+        "SCRIPT", "STYLE", "IFRAME", "OBJECT", "EMBED", "SVG", "MATH", "TEMPLATE"
+      ]);
+
+      function appendPlainText(container, text) {
+        text.split("\n").forEach((line, index) => {
+          if (index) container.appendChild(document.createElement("br"));
+          container.appendChild(document.createTextNode(line));
+        });
+      }
+
+      function appendTextWithMath(container, source) {
+        const normalizedSource = source
+          .replace(/\n{2,}(?=\\\[)/g, "\n")
+          .replace(/(\\\])\n{2,}/g, "$1\n");
+        const mathPattern = /\\\[([\s\S]*?)\\\]|\\\(([\s\S]*?)\\\)/g;
+        let cursor = 0;
+        let match;
+        while ((match = mathPattern.exec(normalizedSource)) !== null) {
+          appendPlainText(container, normalizedSource.slice(cursor, match.index));
+          const displayMode = match[1] !== undefined;
+          const math = document.createElement(displayMode ? "div" : "span");
+          math.className = displayMode ? "forge-math-block" : "forge-math-inline";
+          const latex = match[1] ?? match[2];
+          const normalizedLatex = latex.replace(/\s+/g, "");
+          if (normalizedLatex === "H") {
+            math.appendChild(hMathTemplate.content.cloneNode(true));
+          } else if (normalizedLatex === "T") {
+            math.appendChild(tMathTemplate.content.cloneNode(true));
+          } else if (normalizedLatex === "HT") {
+            math.appendChild(htMathTemplate.content.cloneNode(true));
+          } else if (normalizedLatex === "\\{HT,TH\\}") {
+            math.appendChild(eventMathTemplate.content.cloneNode(true));
+          } else if (normalizedLatex.startsWith("\\begin{aligned}0\\text{heads}")) {
+            math.appendChild(probabilityMathTemplate.content.cloneNode(true));
+          } else {
+            math.textContent = match[0];
+          }
+          if (!displayMode) {
+            const punctuation = normalizedSource.slice(mathPattern.lastIndex).match(/^[.,;:!?]/)?.[0] ?? "";
+            if (punctuation) {
+              math.appendChild(document.createTextNode(punctuation));
+              mathPattern.lastIndex += punctuation.length;
+            }
+          }
+          container.appendChild(math);
+          cursor = mathPattern.lastIndex;
+        }
+        appendPlainText(container, normalizedSource.slice(cursor));
+      }
+
+      function appendSanitizedNode(container, node) {
+        if (node.nodeType === Node.TEXT_NODE) {
+          appendTextWithMath(container, node.textContent || "");
+          return;
+        }
+        if (node.nodeType !== Node.ELEMENT_NODE || blockedCardTags.has(node.tagName)) {
+          return;
+        }
+        if (!allowedCardTags.has(node.tagName)) {
+          Array.from(node.childNodes).forEach((child) => appendSanitizedNode(container, child));
+          return;
+        }
+        const element = document.createElement(node.tagName.toLowerCase());
+        Array.from(node.childNodes).forEach((child) => appendSanitizedNode(element, child));
+        container.appendChild(element);
+      }
+
+      function renderCard(container, source) {
+        container.replaceChildren();
+        const sourceTemplate = document.createElement("template");
+        sourceTemplate.innerHTML = source;
+        Array.from(sourceTemplate.content.childNodes)
+          .forEach((node) => appendSanitizedNode(container, node));
+      }
+
+      function saveCurrent() {
+        if (currentIndex < 0) return;
+        cards[currentIndex].front = frontEdit.value.trim();
+        cards[currentIndex].back = backEdit.value.trim();
+      }
+
+      function cardPayload(card) {
+        return {
+          modelName: card.modelName,
+          front: card.front,
+          back: card.back
+        };
+      }
+
+      function renderPreview() {
+        renderCard(frontPreview, frontEdit.value);
+        renderCard(backPreview, backEdit.value);
+        approve.disabled = !(frontEdit.value.trim() && backEdit.value.trim());
+      }
+
+      function loadCard(index) {
+        if (editing) setEditing(false);
+        saveCurrent();
+        currentIndex = index;
+        frontEdit.value = cards[index].front;
+        backEdit.value = cards[index].back;
+        counter.textContent = `Reviewing Card ${index + 1} / ${cards.length}`;
+        previousButton.disabled = index === 0;
+        nextButton.disabled = index === cards.length - 1;
+        const percent = Math.round(((index + 1) / cards.length) * 100);
+        progress.setAttribute("aria-valuenow", String(percent));
+        progressFill.style.width = `${percent}%`;
+        approveLabel.textContent = index === cards.length - 1 ? "Approve & Review" : "Approve & Next";
+        rejectLabel.textContent = "Reject Card";
+        reject.disabled = false;
+        renderPreview();
+      }
+
+      function setEditing(next) {
+        editing = next;
+        frontPreview.hidden = editing;
+        backPreview.hidden = editing;
+        frontEdit.hidden = !editing;
+        backEdit.hidden = !editing;
+        editToggle.textContent = editing ? "Finish Editing" : "Manual Edit";
+        if (!editing) renderPreview();
+      }
+
+      editToggle.addEventListener("click", () => setEditing(!editing));
+      [frontEdit, backEdit].forEach((field) => field.addEventListener("input", renderPreview));
+      previousButton.addEventListener("click", () => loadCard(currentIndex - 1));
+      nextButton.addEventListener("click", () => loadCard(currentIndex + 1));
+
+      function appendSummary(container, card, position, field) {
+        const entry = document.createElement("div");
+        entry.className = "forge-summary-entry";
+        const label = document.createElement("span");
+        label.className = "text-small text-muted";
+        label.textContent = `Card ${position}`;
+        const content = document.createElement("div");
+        content.className = "forge-card-content";
+        renderCard(content, card[field]);
+        entry.append(label, content);
+        container.appendChild(entry);
+      }
+
+      function finishReview() {
+        saveCurrent();
+        const approvedCards = cards.filter((card) => card.status === "approved");
+        summaryFront.replaceChildren();
+        summaryBack.replaceChildren();
+        approvedCards.forEach((card, index) => {
+          appendSummary(summaryFront, card, index + 1, "front");
+          appendSummary(summaryBack, card, index + 1, "back");
+        });
+        finalCount.textContent = `You approved ${approvedCards.length} of ${cards.length} cards.`;
+        result.textContent = approvedCards.length
+          ? `Ready to add ${approvedCards.length} note${approvedCards.length === 1 ? "" : "s"} to prob.`
+          : "No cards are approved for Anki.";
+        syncButton.disabled = approvedCards.length === 0;
+        review.hidden = true;
+        finalView.hidden = false;
+      }
+
+      function advanceOrFinish() {
+        const nextPending = cards.findIndex((card, index) => index > currentIndex && card.status === "pending");
+        if (nextPending !== -1) {
+          loadCard(nextPending);
+          return;
+        }
+        const anyPending = cards.findIndex((card) => card.status === "pending");
+        if (anyPending !== -1) {
+          loadCard(anyPending);
+          return;
+        }
+        finishReview();
+      }
+
+      approve.addEventListener("click", () => {
+        if (editing) setEditing(false);
+        saveCurrent();
+        cards[currentIndex].status = "approved";
+        advanceOrFinish();
+      });
+
+      reject.addEventListener("click", () => {
+        if (editing) setEditing(false);
+        saveCurrent();
+        cards[currentIndex].status = "rejected";
+        advanceOrFinish();
+      });
+
+      backButton.addEventListener("click", () => {
+        finalView.hidden = true;
+        review.hidden = false;
+        loadCard(cards.length - 1);
+      });
+
+      syncButton.addEventListener("click", async () => {
+        if (writing) return;
+        saveCurrent();
+        const deckName = "prob";
+        const approvedCards = cards
+          .filter((card) => card.status === "approved")
+          .map((card) => cardPayload(card));
+        const reviewPayload = {
+          deckName,
+          cards: approvedCards
+        };
+        if (!approvedCards.length) return;
+
+        writing = true;
+        syncButton.disabled = true;
+        backButton.disabled = true;
+        result.textContent = "Checking the approved cards with Anki…";
+
+        try {
+          const validation = await callTool("validate_reviewed_cards", reviewPayload);
+          const validationData = validation?.structuredContent;
+          if (validation?.isError || !validationData?.ok || !validationData.approvalToken) {
+            throw new Error(validationData?.error || "Anki rejected the reviewed card payload.");
+          }
+
+          result.textContent = "Adding the approved cards to prob…";
+          const added = await callTool("add_reviewed_cards", {
+            ...reviewPayload,
+            approvalToken: validationData.approvalToken
+          });
+          const addedData = added?.structuredContent;
+          if (added?.isError || !addedData?.ok) {
+            throw new Error(addedData?.error || "Anki did not add the reviewed cards.");
+          }
+
+          const noteIds = Array.isArray(addedData.noteIds) ? addedData.noteIds : [];
+          syncButton.textContent = "Added to Anki";
+          result.textContent = `Added ${noteIds.length} card${noteIds.length === 1 ? "" : "s"} to prob. Note IDs: ${noteIds.join(", ")}.`;
+        } catch (error) {
+          writing = false;
+          syncButton.disabled = false;
+          backButton.disabled = false;
+          result.textContent = error instanceof Error ? error.message : "Could not add the cards to Anki.";
+        }
+      });
+
+      acceptReviewPayload(window.openai?.toolOutput);
+    })();
+  </script>
+</div>

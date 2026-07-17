@@ -25,4 +25,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   checkCodex: () => ipcRenderer.invoke('check-codex'),
   generateFlashcards: (payload) => ipcRenderer.invoke('generate-cards', payload),
   amendFlashcard: (payload) => ipcRenderer.invoke('amend-card', payload),
+  onCardPacket: (callback) => {
+    const listener = (_event, packet) => callback(packet);
+    ipcRenderer.on('card-packet-received', listener);
+    return () => ipcRenderer.removeListener('card-packet-received', listener);
+  },
+  setCardPacketReady: (ready) => ipcRenderer.invoke('card-packet-ready', ready),
+  markCardPacketVisible: (packetId) => ipcRenderer.invoke('card-packet-visible', packetId),
+  updateCardPacket: (packetId, update) => ipcRenderer.invoke('card-packet-update', packetId, update),
 });

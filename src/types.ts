@@ -57,6 +57,25 @@ export interface CodexStatus {
   message?: string;
 }
 
+export interface ElectronCardPacketCard {
+  modelName: CardType;
+  front: string;
+  back: string;
+}
+
+export interface ElectronCardPacket {
+  protocolVersion: 1;
+  id: string;
+  deckName: string;
+  cards: ElectronCardPacketCard[];
+  createdAt: string;
+}
+
+export type ElectronCardPacketUpdate =
+  | { status: 'sent'; noteIds: number[] }
+  | { status: 'failed'; error: string }
+  | { status: 'cancelled' };
+
 export interface ElectronAPI {
   savePrompt: (topic: Topic, content: string) => Promise<boolean>;
   loadPromptBackups: (topic: Topic) => Promise<PromptBackupVersion[]>;
@@ -66,6 +85,10 @@ export interface ElectronAPI {
   checkCodex: () => Promise<CodexStatus>;
   generateFlashcards: (payload: GenerateFlashcardsPayload) => Promise<string>;
   amendFlashcard: (payload: AmendFlashcardPayload) => Promise<string>;
+  onCardPacket: (callback: (packet: ElectronCardPacket) => void) => () => void;
+  setCardPacketReady: (ready: boolean) => Promise<unknown>;
+  markCardPacketVisible: (packetId: string) => Promise<unknown>;
+  updateCardPacket: (packetId: string, update: ElectronCardPacketUpdate) => Promise<unknown>;
 }
 
 export interface MathJaxWindowApi {

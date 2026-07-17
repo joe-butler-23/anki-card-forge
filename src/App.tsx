@@ -10,7 +10,7 @@ import { SettingsModal } from './components/SettingsModal';
 import { SetupStep } from './components/steps/SetupStep';
 import { addNotesToAnki, checkConnection, getDeckNames, pingAnki, setAnkiUrl } from './services/ankiConnectService';
 import { AIResponseValidationError, amendFlashcard, CodexAPIError, generateFlashcards, JSONParseError } from './services/codexService';
-import { AppStep, CodexStatus, Flashcard, Topic } from './types';
+import { AppStep, CardType, CodexStatus, ElectronCardPacket, Flashcard, Topic } from './types';
 import { getNextPendingIndex, REVIEW_STATUS, updateReviewStatus } from './reviewState';
 
 function getErrorMessage(error: unknown, fallbackMessage: string): string {
@@ -77,6 +77,7 @@ function App(): React.JSX.Element {
   const [isEditing, setIsEditing] = useState(false);
   const [amendInstruction, setAmendInstruction] = useState('');
   const [isAmending, setIsAmending] = useState(false);
+  const [activePacketId, setActivePacketId] = useState<string | null>(null);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
@@ -130,6 +131,51 @@ function App(): React.JSX.Element {
   useEffect(() => {
     void refreshCodexStatus();
   }, []);
+
+  useEffect(() => {
+    const removeListener = window.electronAPI?.onCardPacket?.((packet: ElectronCardPacket) => {
+      setError(null);
+      setSelectedDeck(packet.deckName);
+      setGeneratedCards(packet.cards.map((card, index) => ({
+        id: `${packet.id}-${index + 1}`,
+        cardType: card.modelName === CardType.BasicTyping ? CardType.BasicTyping : CardType.Basic,
+        front: card.front,
+        back: card.back,
+        reviewStatus: REVIEW_STATUS.Pending,
+      })));
+      setCurrentCardIndex(0);
+      setIsEditing(false);
+      setAmendInstruction('');
+      setActivePacketId(packet.id);
+      setStep(AppStep.Reviewing);
+    });
+
+    return () => removeListener?.();
+  }, []);
+
+  useEffect(() => {
+    const ready = activePacketId === null && (step === AppStep.Setup || step === AppStep.Done);
+    void window.electronAPI?.setCardPacketReady?.(ready).catch((error) => {
+      if (import.meta.env.DEV) console.error('Failed to update Card Forge inbox readiness:', error);
+    });
+  }, [activePacketId, step]);
+
+  useEffect(() => {
+    if (!activePacketId || step !== AppStep.Reviewing) return undefined;
+    let firstFrame = 0;
+    let secondFrame = 0;
+    firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => {
+        void window.electronAPI?.markCardPacketVisible?.(activePacketId).catch((error) => {
+          if (import.meta.env.DEV) console.error('Failed to record Card Forge packet visibility:', error);
+        });
+      });
+    });
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      window.cancelAnimationFrame(secondFrame);
+    };
+  }, [activePacketId, step]);
 
   async function refreshConnection(showErrors: boolean): Promise<void> {
     setIsCheckingConnection(true);
@@ -315,9 +361,30 @@ function App(): React.JSX.Element {
         console.log(`Added ${addedIds.length} cards`);
       }
 
+      if (activePacketId) {
+        try {
+          await window.electronAPI?.updateCardPacket?.(activePacketId, {
+            status: 'sent',
+            noteIds: addedIds,
+          });
+        } catch (receiptError) {
+          console.error('Cards reached Anki but the packet receipt failed:', receiptError);
+          setError('Cards were added to Anki, but Card Forge could not record their receipt. Do not send them again.');
+        }
+        setActivePacketId(null);
+      }
       setStep(AppStep.Done);
     } catch (error) {
-      setError(getErrorMessage(error, 'Failed to sync with Anki. Is the app open?'));
+      const message = getErrorMessage(error, 'Failed to sync with Anki. Is the app open?');
+      setError(message);
+      if (activePacketId) {
+        void window.electronAPI?.updateCardPacket?.(activePacketId, {
+          status: 'failed',
+          error: message,
+        }).catch((receiptError) => {
+          if (import.meta.env.DEV) console.error('Failed to record Card Forge packet failure:', receiptError);
+        });
+      }
       setStep(AppStep.Finalizing);
     }
   }
@@ -335,6 +402,10 @@ function App(): React.JSX.Element {
   }
 
   function handleReset(): void {
+    if (activePacketId) {
+      void window.electronAPI?.updateCardPacket?.(activePacketId, { status: 'cancelled' });
+      setActivePacketId(null);
+    }
     setNotes('');
     setSelectedImage(null);
     setGeneratedCards([]);
@@ -347,6 +418,11 @@ function App(): React.JSX.Element {
       return;
     }
 
+    if (activePacketId) {
+      void window.electronAPI?.updateCardPacket?.(activePacketId, { status: 'cancelled' });
+      setActivePacketId(null);
+      setGeneratedCards([]);
+    }
     setStep(AppStep.Setup);
   }
 

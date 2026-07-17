@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import { generateFlashcardsInMain, amendFlashcardInMain, checkCodexStatus } from './codex.js';
+import { createCardPacketInbox } from './card-packet-inbox.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const promptsJsonPath = path.join(__dirname, '../src/prompts/topics.json');
@@ -10,6 +11,7 @@ const userDataPath = app.getPath('userData');
 const promptsDir = path.join(userDataPath, 'prompts');
 const customPromptsPath = path.join(promptsDir, 'prompts.json');
 const backupsPath = path.join(promptsDir, 'backups');
+let cardPacketInbox = null;
 
 const normalizeTopicKey = (topic) => {
   if (!topic) return 'general';
@@ -166,6 +168,21 @@ const createWindow = () => {
 
 app.whenReady().then(() => {
   ensureStorage();
+  cardPacketInbox = createCardPacketInbox({
+    deliver: (packet) => {
+      const win = BrowserWindow.getAllWindows()[0];
+      if (!win || win.isDestroyed()) {
+        throw new Error('The Card Forge review window is unavailable.');
+      }
+      if (win.isMinimized()) win.restore();
+      win.show();
+      win.focus();
+      win.webContents.send('card-packet-received', packet);
+    },
+  });
+  cardPacketInbox.start().catch((error) => {
+    console.error('Failed to start the Card Forge packet inbox:', error);
+  });
   createWindow();
 
   app.on('activate', () => {
@@ -264,6 +281,25 @@ ipcMain.handle('amend-card', async (event, payload) => {
     }
     throw new Error(message);
   }
+});
+
+ipcMain.handle('card-packet-ready', async (_event, ready) => {
+  if (!cardPacketInbox) throw new Error('The Card Forge packet inbox is not ready.');
+  return cardPacketInbox.setRendererReady(ready);
+});
+
+ipcMain.handle('card-packet-visible', async (_event, packetId) => {
+  if (!cardPacketInbox) throw new Error('The Card Forge packet inbox is not ready.');
+  return cardPacketInbox.markVisible(packetId);
+});
+
+ipcMain.handle('card-packet-update', async (_event, packetId, update) => {
+  if (!cardPacketInbox) throw new Error('The Card Forge packet inbox is not ready.');
+  return cardPacketInbox.updateActive(packetId, update);
+});
+
+app.on('before-quit', () => {
+  cardPacketInbox?.stopSync();
 });
 
 app.on('window-all-closed', () => {

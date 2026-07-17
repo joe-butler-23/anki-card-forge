@@ -1,11 +1,20 @@
 #!/usr/bin/env node
 
+import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import * as z from 'zod/v4';
 import { createAnkiConnectClient } from './anki-connect.mjs';
 import { createReviewApprovalStore } from './review-approval.mjs';
+import { createElectronInboxClient } from './electron-inbox-client.mjs';
+
+export const CARD_REVIEW_WIDGET_URI = 'ui://anki-card-forge/card-review-v2.html';
+
+const cardReviewWidgetHtml = readFileSync(
+  new URL('./card-review-widget.html', import.meta.url),
+  'utf8',
+);
 
 const cardSchema = z.object({
   modelName: z.enum(['Basic', 'Basic (type in the answer)']).default('Basic'),
@@ -34,13 +43,152 @@ function failure(error) {
 export function createServer({
   ankiClient = createAnkiConnectClient(),
   approvalStore = createReviewApprovalStore(),
+  electronInboxClient = createElectronInboxClient(),
 } = {}) {
   const server = new McpServer(
-    { name: 'anki-card-forge', version: '1.0.0' },
+    { name: 'anki-card-forge', version: '1.1.0' },
     {
       instructions:
-        'Generate and review cards in the conversation or Card Forge UI. After the user approves the exact deck, model, front, and back fields, call validate_reviewed_cards, then pass its one-time token with the unchanged payload to add_reviewed_cards. This server never syncs AnkiWeb.',
+        'After the learner understands a topic, create the smallest useful card set. Use send_cards_to_electron when the learner wants the persistent desktop Card Forge; use review_cards for the embedded review panel. Both paths require learner review before any Anki write. This server never syncs AnkiWeb.',
     },
+  );
+
+  server.registerResource(
+    'anki-card-forge-review',
+    CARD_REVIEW_WIDGET_URI,
+    {
+      title: 'Anki Card Forge review',
+      description: 'Review, edit, reject, and add approved cards to the prob Anki deck.',
+      mimeType: 'text/html;profile=mcp-app',
+    },
+    async () => ({
+      contents: [
+        {
+          uri: CARD_REVIEW_WIDGET_URI,
+          mimeType: 'text/html;profile=mcp-app',
+          text: cardReviewWidgetHtml,
+          _meta: {
+            ui: {
+              prefersBorder: true,
+              csp: {
+                connectDomains: [],
+                resourceDomains: [],
+              },
+            },
+            'openai/widgetDescription':
+              'Card Forge review. The learner can edit or reject each proposed card, then add the exact approved cards directly to Anki.',
+            'openai/widgetPrefersBorder': true,
+          },
+        },
+      ],
+    }),
+  );
+
+  server.registerTool(
+    'check_electron_inbox',
+    {
+      title: 'Check desktop Card Forge',
+      description: 'Check whether the local Card Forge Electron inbox is running and ready for card packets.',
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async () => {
+      try {
+        const status = await electronInboxClient.ping();
+        return toolResult(status, `Desktop Card Forge is online with ${status.queuedPackets} queued packet(s).`);
+      } catch (error) {
+        return failure(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    'send_cards_to_electron',
+    {
+      title: 'Send cards to desktop Card Forge',
+      description:
+        'Queue candidate cards in the already-running desktop Card Forge for learner review. This does not add anything to Anki.',
+      inputSchema: {
+        cards: cardsInputSchema.cards,
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+    },
+    async ({ cards }) => {
+      try {
+        const status = await electronInboxClient.submit(cards, 'prob');
+        return toolResult(
+          status,
+          `Queued ${cards.length} candidate card(s) in desktop Card Forge as packet ${status.packetId}. Nothing has been added to Anki.`,
+        );
+      } catch (error) {
+        return failure(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    'get_electron_packet_status',
+    {
+      title: 'Get desktop card packet status',
+      description: 'Get the review or send receipt for a packet previously sent to desktop Card Forge.',
+      inputSchema: {
+        packetId: z.string().trim().min(1).max(100),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async ({ packetId }) => {
+      try {
+        const status = await electronInboxClient.status(packetId);
+        const noteSummary = status.noteIds?.length ? ` Note IDs: ${status.noteIds.join(', ')}.` : '';
+        return toolResult(status, `Packet ${packetId} is ${status.status}.${noteSummary}`);
+      } catch (error) {
+        return failure(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    'review_cards',
+    {
+      title: 'Review Anki cards',
+      description:
+        'Use this when the learner understands a topic and should review a proposed minimal card set before anything is added to Anki.',
+      inputSchema: {
+        cards: cardsInputSchema.cards,
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+      _meta: {
+        ui: { resourceUri: CARD_REVIEW_WIDGET_URI },
+        'openai/outputTemplate': CARD_REVIEW_WIDGET_URI,
+        'openai/widgetAccessible': true,
+        'openai/toolInvocation/invoking': 'Opening Card Forge review…',
+        'openai/toolInvocation/invoked': 'Card Forge review ready',
+      },
+    },
+    async ({ cards }) =>
+      toolResult(
+        { ok: true, deckName: 'prob', cards },
+        `Prepared ${cards.length} candidate card(s) for learner review. Nothing has been added to Anki yet.`,
+      ),
   );
 
   server.registerTool(

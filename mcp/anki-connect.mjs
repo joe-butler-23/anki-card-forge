@@ -1,5 +1,10 @@
 const DEFAULT_ANKI_CONNECT_URL = 'http://127.0.0.1:8765';
 const SUPPORTED_MODELS = new Set(['Basic', 'Basic (type in the answer)']);
+const ALLOWED_CARD_TAGS = new Set([
+  'b', 'i', 'em', 'strong', 'code', 'pre', 'sup', 'sub', 'br', 'hr',
+  'p', 'div', 'span', 'ul', 'ol', 'li',
+]);
+const VOID_CARD_TAGS = new Set(['br', 'hr']);
 
 function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
@@ -33,12 +38,32 @@ export function normalizeAnkiConnectUrl(value = DEFAULT_ANKI_CONNECT_URL) {
   return url.toString().replace(/\/$/, '');
 }
 
-export function escapeCardText(value) {
+function escapeHtmlText(value) {
   return value
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replace(/\r\n?|\n/g, '<br>');
+    .replaceAll('>', '&gt;');
+}
+
+export function sanitizeCardHtml(value) {
+  const tagPattern = /<\s*(\/?)\s*([a-z][a-z0-9]*)(?:\s[^<>]*?)?\s*\/?>/gi;
+  let result = '';
+  let cursor = 0;
+  let match;
+
+  while ((match = tagPattern.exec(value)) !== null) {
+    result += escapeHtmlText(value.slice(cursor, match.index));
+    const closing = match[1] === '/';
+    const tag = match[2].toLowerCase();
+
+    if (ALLOWED_CARD_TAGS.has(tag) && !(closing && VOID_CARD_TAGS.has(tag))) {
+      result += closing ? `</${tag}>` : `<${tag}>`;
+    }
+    cursor = tagPattern.lastIndex;
+  }
+
+  result += escapeHtmlText(value.slice(cursor));
+  return result.replace(/\r\n?|\n/g, '<br>');
 }
 
 export function validateCard(card, index = 0) {
@@ -60,7 +85,7 @@ export function validateCard(card, index = 0) {
 }
 
 function reviewedCardIdentity(card) {
-  return JSON.stringify([card.modelName, escapeCardText(card.front).trim()]);
+  return JSON.stringify([card.modelName, sanitizeCardHtml(card.front).trim()]);
 }
 
 function rejectDuplicateCards(cards) {
@@ -91,8 +116,8 @@ export function createNote(card, deckName) {
     deckName: deckName.trim(),
     modelName: card.modelName,
     fields: {
-      Front: escapeCardText(card.front),
-      Back: escapeCardText(card.back),
+      Front: sanitizeCardHtml(card.front),
+      Back: sanitizeCardHtml(card.back),
     },
     options: {
       allowDuplicate: false,

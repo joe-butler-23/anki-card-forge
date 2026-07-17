@@ -3,8 +3,8 @@ import test from 'node:test';
 import {
   createAnkiConnectClient,
   createNote,
-  escapeCardText,
   normalizeAnkiConnectUrl,
+  sanitizeCardHtml,
   validateCard,
 } from '../mcp/anki-connect.mjs';
 import { createReviewApprovalStore, reviewedPayloadDigest } from '../mcp/review-approval.mjs';
@@ -27,11 +27,12 @@ test('normalizes localhost AnkiConnect URLs and rejects remote URLs', () => {
   assert.throws(() => normalizeAnkiConnectUrl('http://127.0.0.1:8765/path'), /must not include a path/);
 });
 
-test('escapes HTML while preserving MathJax delimiters and line breaks', () => {
+test('sanitizes supported card HTML while preserving MathJax and line breaks', () => {
   assert.equal(
-    escapeCardText('<script>x</script>\n\\(p < 0.05\\) & evidence'),
-    '&lt;script&gt;x&lt;/script&gt;<br>\\(p &lt; 0.05\\) &amp; evidence',
+    sanitizeCardHtml('<B onclick="x"><i>term</i></B><br><script>x</script>\n\\(p < 0.05\\) & evidence'),
+    '<b><i>term</i></b><br>x<br>\\(p &lt; 0.05\\) &amp; evidence',
   );
+  assert.equal(sanitizeCardHtml('<a href="https://example.com">link</a><hr>'), 'link<hr>');
 });
 
 test('constructs supported Anki notes and rejects invalid cards', () => {
@@ -57,6 +58,23 @@ test('constructs supported Anki notes and rejects invalid cards', () => {
   assert.throws(
     () => validateCard({ modelName: 'Basic', front: ' ', back: 'y' }),
     /empty front/,
+  );
+});
+
+test('constructs Anki notes with sanitized formatting and no executable attributes', () => {
+  assert.deepEqual(
+    createNote(
+      {
+        modelName: 'Basic',
+        front: 'What is an <b onclick="alert(1)">event</b>?',
+        back: 'A set of outcomes.<br><img src=x onerror="alert(1)">',
+      },
+      'prob',
+    ).fields,
+    {
+      Front: 'What is an <b>event</b>?',
+      Back: 'A set of outcomes.<br>',
+    },
   );
 });
 

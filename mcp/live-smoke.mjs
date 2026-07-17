@@ -3,6 +3,7 @@
 import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { CARD_REVIEW_WIDGET_URI } from './server.mjs';
 
 const serverPath = fileURLToPath(new URL('./server.mjs', import.meta.url));
 const transport = new StdioClientTransport({
@@ -20,6 +21,7 @@ try {
     'add_reviewed_cards',
     'check_anki_connection',
     'get_anki_decks',
+    'review_cards',
     'validate_reviewed_cards',
   ];
 
@@ -36,6 +38,21 @@ try {
   const decks = decksResult.structuredContent?.decks;
   if (decksResult.isError || !Array.isArray(decks) || decks.length === 0) {
     throw new Error('Anki deck lookup failed.');
+  }
+
+  const review = await client.callTool({
+    name: 'review_cards',
+    arguments: {
+      cards: [{ modelName: 'Basic', front: 'Smoke review front', back: 'Smoke review back' }],
+    },
+  });
+  if (review.isError || review.structuredContent?.deckName !== 'prob') {
+    throw new Error('Card review widget tool failed.');
+  }
+
+  const widget = await client.readResource({ uri: CARD_REVIEW_WIDGET_URI });
+  if (widget.contents[0]?.mimeType !== 'text/html;profile=mcp-app') {
+    throw new Error('Card review widget resource failed.');
   }
 
   const validation = await client.callTool({
