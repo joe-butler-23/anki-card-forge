@@ -82,6 +82,17 @@ export function validateCard(card, index = 0) {
       throw new Error(`Card ${index + 1} ${field} exceeds 20,000 characters.`);
     }
   }
+
+  const tags = card.tags ?? [];
+  if (!Array.isArray(tags)) {
+    throw new Error(`Card ${index + 1} tags must be an array.`);
+  }
+
+  for (const tag of tags) {
+    if (typeof tag !== 'string' || tag.length === 0 || tag.length > 100 || /\s/.test(tag)) {
+      throw new Error(`Card ${index + 1} has an invalid Anki tag.`);
+    }
+  }
 }
 
 function reviewedCardIdentity(card) {
@@ -115,6 +126,7 @@ export function createNote(card, deckName) {
   return {
     deckName: deckName.trim(),
     modelName: card.modelName,
+    tags: [...(card.tags ?? [])],
     fields: {
       Front: sanitizeCardHtml(card.front),
       Back: sanitizeCardHtml(card.back),

@@ -157,6 +157,10 @@
       </section>
     </div>
 
+    <label class="forge-field form-label" for="forge-polished-tags">Tags
+      <input id="forge-polished-tags" class="form-control" type="text" placeholder="all-of-statistics::ch-01">
+    </label>
+
     <section class="card forge-actions" aria-label="Card decision">
       <button type="button" class="btn btn-primary btn-block" id="forge-polished-approve">
         <i data-lucide="circle-check" aria-hidden="true"></i>
@@ -223,6 +227,7 @@
       const backPreview = root.querySelector("#forge-polished-back-preview");
       const frontEdit = root.querySelector("#forge-polished-front-edit");
       const backEdit = root.querySelector("#forge-polished-back-edit");
+      const tagsEdit = root.querySelector("#forge-polished-tags");
       const editToggle = root.querySelector("#forge-polished-edit-toggle");
       const approve = root.querySelector("#forge-polished-approve");
       const reject = root.querySelector("#forge-polished-reject");
@@ -316,6 +321,7 @@
             front: card.front,
             back: card.back,
             modelName: card.modelName || "Basic",
+            tags: Array.isArray(card.tags) ? card.tags : [],
             status: "pending"
           }));
         if (!received.length) {
@@ -413,13 +419,15 @@
         if (currentIndex < 0) return;
         cards[currentIndex].front = frontEdit.value.trim();
         cards[currentIndex].back = backEdit.value.trim();
+        cards[currentIndex].tags = tagsEdit.value.trim().split(/\s+/).filter(Boolean);
       }
 
       function cardPayload(card) {
         return {
           modelName: card.modelName,
           front: card.front,
-          back: card.back
+          back: card.back,
+          tags: card.tags
         };
       }
 
@@ -435,6 +443,7 @@
         currentIndex = index;
         frontEdit.value = cards[index].front;
         backEdit.value = cards[index].back;
+        tagsEdit.value = cards[index].tags.join(" ");
         counter.textContent = `Reviewing Card ${index + 1} / ${cards.length}`;
         previousButton.disabled = index === 0;
         nextButton.disabled = index === cards.length - 1;

@@ -19,6 +19,7 @@ export interface Flashcard {
   cardType: CardType;
   front: string;
   back: string;
+  tags: string[];
   reviewStatus: ReviewStatus;
 }
 
@@ -61,6 +62,7 @@ export interface ElectronCardPacketCard {
   modelName: CardType;
   front: string;
   back: string;
+  tags?: string[];
 }
 
 export interface ElectronCardPacket {

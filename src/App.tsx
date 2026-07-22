@@ -141,6 +141,7 @@ function App(): React.JSX.Element {
         cardType: card.modelName === CardType.BasicTyping ? CardType.BasicTyping : CardType.Basic,
         front: card.front,
         back: card.back,
+        tags: card.tags ?? [],
         reviewStatus: REVIEW_STATUS.Pending,
       })));
       setCurrentCardIndex(0);
@@ -335,11 +336,21 @@ function App(): React.JSX.Element {
     }
   }
 
-  function handleManualEdit(field: keyof Flashcard, value: string): void {
+  function handleManualEdit(field: 'front' | 'back', value: string): void {
     setGeneratedCards((cards) =>
       updateCardAtIndex(cards, currentCardIndex, (card) => ({
         ...card,
         [field]: value,
+        reviewStatus: REVIEW_STATUS.Pending,
+      })),
+    );
+  }
+
+  function handleTagsEdit(tags: string[]): void {
+    setGeneratedCards((cards) =>
+      updateCardAtIndex(cards, currentCardIndex, (card) => ({
+        ...card,
+        tags,
         reviewStatus: REVIEW_STATUS.Pending,
       })),
     );
@@ -491,6 +502,7 @@ function App(): React.JSX.Element {
             isEditing={isEditing}
             setIsEditing={setIsEditing}
             onManualUpdate={handleManualEdit}
+            onTagsUpdate={handleTagsEdit}
             onAction={handleCardAction}
             onNavigate={setCurrentCardIndex}
             amendInstruction={amendInstruction}

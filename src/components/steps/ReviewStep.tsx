@@ -10,7 +10,8 @@ interface ReviewStepProps {
   currentIndex: number;
   isEditing: boolean;
   setIsEditing: (val: boolean) => void;
-  onManualUpdate: (field: keyof Flashcard, value: string) => void;
+  onManualUpdate: (field: 'front' | 'back', value: string) => void;
+  onTagsUpdate: (tags: string[]) => void;
   onAction: (action: 'accept' | 'reject') => void;
   onNavigate: (index: number) => void;
   amendInstruction: string;
@@ -26,6 +27,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
   isEditing,
   setIsEditing,
   onManualUpdate,
+  onTagsUpdate,
   onAction,
   onNavigate,
   amendInstruction,
@@ -74,6 +76,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                 card={card} 
                 isEditing={isEditing}
                 onUpdate={onManualUpdate}
+                onTagsUpdate={onTagsUpdate}
               />
           </div>
         </div>

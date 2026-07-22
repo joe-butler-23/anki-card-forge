@@ -6,6 +6,7 @@ export const FlashcardSchema = z.object({
   cardType: z.enum([CardType.Basic, CardType.BasicTyping]),
   front: z.string().min(1, 'Card front cannot be empty'),
   back: z.string().min(1, 'Card back cannot be empty'),
+  tags: z.array(z.string()).default([]),
 });
 
 // Schema for validating array of flashcards

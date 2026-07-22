@@ -9,8 +9,8 @@ import { createCardPacket, getCardPacketSocketPath } from '../electron/card-pack
 import { createElectronInboxClient } from '../mcp/electron-inbox-client.mjs';
 
 const sampleCards = [
-  { modelName: 'Basic', front: '<b>bold</b><br>line two', back: 'Test back.' },
-  { modelName: 'Basic (type in the answer)', front: 'Typed front', back: 'Typed back' },
+  { modelName: 'Basic', front: '<b>bold</b><br>line two', back: 'Test back.', tags: ['all-of-statistics::ch-01'] },
+  { modelName: 'Basic (type in the answer)', front: 'Typed front', back: 'Typed back', tags: [] },
 ];
 
 test('uses the per-user Linux runtime directory when XDG_RUNTIME_DIR is missing', () => {
@@ -64,6 +64,10 @@ test('validates a packet without changing its card content', () => {
   assert.throws(
     () => createCardPacket([{ modelName: 'Cloze', front: 'x', back: 'y' }]),
     /unsupported/,
+  );
+  assert.throws(
+    () => createCardPacket([{ modelName: 'Basic', front: 'x', back: 'y', tags: ['not valid'] }]),
+    /whitespace/,
   );
 });
 

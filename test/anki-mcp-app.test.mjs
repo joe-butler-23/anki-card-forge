@@ -88,7 +88,7 @@ test('queues cards in desktop Card Forge and returns packet receipts', async (t)
     await server.close();
   });
 
-  const cards = [{ modelName: 'Basic', front: 'Fast?', back: 'Yes.' }];
+  const cards = [{ modelName: 'Basic', front: 'Fast?', back: 'Yes.', tags: ['all-of-statistics::ch-01'] }];
   const listed = await client.listTools();
   for (const name of ['check_electron_inbox', 'send_cards_to_electron', 'get_electron_packet_status']) {
     assert.ok(listed.tools.some((tool) => tool.name === name));
@@ -135,8 +135,18 @@ test('renders cards for prob and accepts the unchanged reviewed payload once', a
   });
 
   const cards = [
-    { modelName: 'Basic', front: 'What is an event?', back: 'A set of outcomes.' },
-    { modelName: 'Basic', front: 'What is an outcome?', back: 'One possible result.' },
+    {
+      modelName: 'Basic',
+      front: 'What is an event?',
+      back: 'A set of outcomes.',
+      tags: ['all-of-statistics::ch-01'],
+    },
+    {
+      modelName: 'Basic',
+      front: 'What is an outcome?',
+      back: 'One possible result.',
+      tags: ['all-of-statistics::ch-01'],
+    },
   ];
   const rendered = await client.callTool({ name: 'review_cards', arguments: { cards } });
   assert.deepEqual(rendered.structuredContent, { ok: true, deckName: 'prob', cards });

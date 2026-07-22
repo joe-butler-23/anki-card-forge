@@ -3,7 +3,7 @@ import { createHash, randomUUID } from 'node:crypto';
 export function reviewedPayloadDigest(deckName, cards) {
   const canonicalPayload = {
     deckName,
-    cards: cards.map(({ modelName, front, back }) => ({ modelName, front, back })),
+    cards: cards.map(({ modelName, front, back, tags = [] }) => ({ modelName, front, back, tags })),
   };
 
   return createHash('sha256').update(JSON.stringify(canonicalPayload)).digest('hex');

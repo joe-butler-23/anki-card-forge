@@ -20,6 +20,9 @@ const cardSchema = z.object({
   modelName: z.enum(['Basic', 'Basic (type in the answer)']).default('Basic'),
   front: z.string().min(1).max(20_000),
   back: z.string().min(1).max(20_000),
+  tags: z.array(
+    z.string().trim().min(1).max(100).regex(/^\S+$/, 'Anki tags cannot contain whitespace.'),
+  ).max(50).default([]),
 });
 
 const cardsInputSchema = {

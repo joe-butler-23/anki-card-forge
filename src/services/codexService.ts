@@ -189,6 +189,7 @@ export async function amendFlashcard(
     return {
       ...validatedCard,
       id: card.id,
+      tags: card.tags,
       reviewStatus: REVIEW_STATUS.Pending,
     };
   } catch (error) {

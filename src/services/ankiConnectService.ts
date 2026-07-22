@@ -14,6 +14,7 @@ type AnkiParams = Record<string, unknown>;
 type AnkiNote = {
   deckName: string;
   modelName: string;
+  tags: string[];
   fields: Record<'Front' | 'Back', string>;
   options: {
     allowDuplicate: boolean;
@@ -81,6 +82,7 @@ function createNote(card: Flashcard, deckName: string): AnkiNote {
   return {
     deckName,
     modelName,
+    tags: [...card.tags],
     fields,
     options: {
       allowDuplicate: false,

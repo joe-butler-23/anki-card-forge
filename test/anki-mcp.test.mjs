@@ -38,12 +38,13 @@ test('sanitizes supported card HTML while preserving MathJax and line breaks', (
 test('constructs supported Anki notes and rejects invalid cards', () => {
   assert.deepEqual(
     createNote(
-      { modelName: 'Basic', front: 'What is \\(p\\)?', back: 'A probability under the null.' },
+      { modelName: 'Basic', front: 'What is \\(p\\)?', back: 'A probability under the null.', tags: ['all-of-statistics::ch-01'] },
       'prob',
     ),
     {
       deckName: 'prob',
       modelName: 'Basic',
+      tags: ['all-of-statistics::ch-01'],
       fields: {
         Front: 'What is \\(p\\)?',
         Back: 'A probability under the null.',
@@ -59,6 +60,10 @@ test('constructs supported Anki notes and rejects invalid cards', () => {
     () => validateCard({ modelName: 'Basic', front: ' ', back: 'y' }),
     /empty front/,
   );
+  assert.throws(
+    () => validateCard({ modelName: 'Basic', front: 'x', back: 'y', tags: ['not valid'] }),
+    /invalid Anki tag/,
+  );
 });
 
 test('constructs Anki notes with sanitized formatting and no executable attributes', () => {
@@ -68,6 +73,7 @@ test('constructs Anki notes with sanitized formatting and no executable attribut
         modelName: 'Basic',
         front: 'What is an <b onclick="alert(1)">event</b>?',
         back: 'A set of outcomes.<br><img src=x onerror="alert(1)">',
+        tags: [],
       },
       'prob',
     ).fields,
@@ -175,7 +181,7 @@ test('fails closed on malformed AnkiConnect envelopes', async () => {
 });
 
 test('binds a one-time approval token to the exact reviewed payload', () => {
-  const cards = [{ modelName: 'Basic', front: 'front', back: 'back' }];
+  const cards = [{ modelName: 'Basic', front: 'front', back: 'back', tags: ['all-of-statistics::ch-01'] }];
   const store = createReviewApprovalStore({
     now: () => 1_000,
     createToken: () => 'token',
@@ -183,6 +189,7 @@ test('binds a one-time approval token to the exact reviewed payload', () => {
   store.issue('prob', cards);
 
   assert.throws(() => store.consume('token', 'prob', [{ ...cards[0], back: 'changed' }]), /changed/);
+  assert.throws(() => store.consume('token', 'prob', [{ ...cards[0], tags: ['all-of-statistics::ch-02'] }]), /changed/);
   store.consume('token', 'prob', cards);
   assert.throws(() => store.consume('token', 'prob', cards), /already been used/);
   assert.notEqual(reviewedPayloadDigest('prob', cards), reviewedPayloadDigest('other', cards));
@@ -190,7 +197,7 @@ test('binds a one-time approval token to the exact reviewed payload', () => {
 
 test('expires reviewed-card approval tokens', () => {
   let currentTime = 1_000;
-  const cards = [{ modelName: 'Basic', front: 'front', back: 'back' }];
+  const cards = [{ modelName: 'Basic', front: 'front', back: 'back', tags: [] }];
   const store = createReviewApprovalStore({
     ttlMs: 100,
     now: () => currentTime,

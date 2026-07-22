@@ -9,6 +9,8 @@ export const CARD_PACKET_MODELS = Object.freeze([
 
 export const CARD_PACKET_MAX_CARDS = 20;
 export const CARD_PACKET_MAX_FIELD_LENGTH = 20_000;
+export const CARD_PACKET_MAX_TAGS = 50;
+export const CARD_PACKET_MAX_TAG_LENGTH = 100;
 export const CARD_PACKET_PROTOCOL_VERSION = 1;
 
 function assertPlainObject(value, label) {
@@ -27,6 +29,22 @@ function validateString(value, label, maxLength) {
   return value;
 }
 
+function validateTags(value, label) {
+  if (value === undefined) {
+    return [];
+  }
+  if (!Array.isArray(value) || value.length > CARD_PACKET_MAX_TAGS) {
+    throw new Error(`${label} must be an array of at most ${CARD_PACKET_MAX_TAGS} tags.`);
+  }
+  return value.map((tag, tagIndex) => {
+    const validated = validateString(tag, `${label}[${tagIndex}]`, CARD_PACKET_MAX_TAG_LENGTH).trim();
+    if (/\s/.test(validated)) {
+      throw new Error(`${label}[${tagIndex}] cannot contain whitespace.`);
+    }
+    return validated;
+  });
+}
+
 export function validateCardPacketCard(card, index = 0) {
   assertPlainObject(card, `cards[${index}]`);
   const modelName = card.modelName ?? 'Basic';
@@ -37,6 +55,7 @@ export function validateCardPacketCard(card, index = 0) {
     modelName,
     front: validateString(card.front, `cards[${index}].front`, CARD_PACKET_MAX_FIELD_LENGTH),
     back: validateString(card.back, `cards[${index}].back`, CARD_PACKET_MAX_FIELD_LENGTH),
+    tags: validateTags(card.tags, `cards[${index}].tags`),
   };
 }
 

@@ -6,13 +6,14 @@ import { sanitizeCardHtml } from '../utils/sanitizeHtml';
 interface CardPreviewProps {
   card: Flashcard;
   isEditing: boolean;
-  onUpdate: (field: keyof Flashcard, value: string) => void;
+  onUpdate: (field: 'front' | 'back', value: string) => void;
+  onTagsUpdate: (tags: string[]) => void;
 }
 
 function renderCardPanel(
   card: Flashcard,
   isEditing: boolean,
-  onUpdate: (field: keyof Flashcard, value: string) => void,
+  onUpdate: (field: 'front' | 'back', value: string) => void,
   config: {
     field: 'front' | 'back';
     label: string;
@@ -48,7 +49,7 @@ function renderCardPanel(
   );
 }
 
-export function CardPreview({ card, isEditing, onUpdate }: CardPreviewProps): React.JSX.Element {
+export function CardPreview({ card, isEditing, onUpdate, onTagsUpdate }: CardPreviewProps): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -85,24 +86,36 @@ export function CardPreview({ card, isEditing, onUpdate }: CardPreviewProps): Re
   }, [card.back, card.front, isEditing]);
 
   return (
-    <div ref={containerRef} className="w-full grid grid-cols-1 md:grid-cols-2 gap-4 h-full min-h-[400px]">
-      <div className="h-full">
-        {renderCardPanel(card, isEditing, onUpdate, {
-          field: 'front',
-          label: 'Front / Question',
-          containerClassName: 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800',
-          headerColorClassName: 'text-indigo-600 dark:text-indigo-400',
-        })}
+    <div ref={containerRef} className="w-full flex flex-col gap-4 h-full min-h-[400px]">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-grow">
+        <div className="h-full">
+          {renderCardPanel(card, isEditing, onUpdate, {
+            field: 'front',
+            label: 'Front / Question',
+            containerClassName: 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800',
+            headerColorClassName: 'text-indigo-600 dark:text-indigo-400',
+          })}
+        </div>
+
+        <div className="h-full">
+          {renderCardPanel(card, isEditing, onUpdate, {
+            field: 'back',
+            label: 'Back / Answer',
+            containerClassName: 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800',
+            headerColorClassName: 'text-emerald-600 dark:text-emerald-400',
+          })}
+        </div>
       </div>
 
-      <div className="h-full">
-        {renderCardPanel(card, isEditing, onUpdate, {
-          field: 'back',
-          label: 'Back / Answer',
-          containerClassName: 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800',
-          headerColorClassName: 'text-emerald-600 dark:text-emerald-400',
-        })}
-      </div>
+      <label className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+        Tags
+        <input
+          value={card.tags.join(' ')}
+          onChange={(event) => onTagsUpdate(event.target.value.trim().split(/\s+/).filter(Boolean))}
+          className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 font-mono text-sm font-normal normal-case tracking-normal text-slate-800 outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+          placeholder="all-of-statistics::ch-01"
+        />
+      </label>
     </div>
   );
 }
