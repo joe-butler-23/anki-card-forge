@@ -59,6 +59,26 @@ bd create "Short title" --description="Why this exists and what needs to be done
 bd close <id> --reason="Completed"
 ```
 
+## Synchronisation
+
+Issue data syncs between machines through the Dolt remote, not through git. The git hooks only chain other hooks and maintain optional JSONL exports; they never push or pull issue data, and `git push` does not publish it. Sync is explicit:
+
+1. Pull before starting work in a repository:
+
+```bash
+bd dolt pull
+```
+
+2. Push after closing work, at handoff, and at session end:
+
+```bash
+bd dolt push
+```
+
+On a fresh clone, run `bd bootstrap` instead of `bd init` so the existing remote history is adopted rather than forked.
+
+If `bd dolt pull` reports conflicts in `issues`, stop and report: operator resolution is required. bd aborts the merge and restores the working set. Never force-resolve with `bd dolt push --force`, `bd init --force`, or by deleting `.beads/` state.
+
 ## What Belongs In Beads
 
 Use Beads for:
