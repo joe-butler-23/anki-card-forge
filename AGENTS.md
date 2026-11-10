@@ -39,7 +39,7 @@ For user-facing changes, run `npm run electron:dev` and inspect the actual Elect
 For installed-runtime proof, update the source pin in `~/nix-config`, run `ns`, launch the system `anki-card-forge`, and verify the affected surface there.
 
 <!-- clai:instructions:coding:start -->
-<!-- source-sha256:1a131f46fafd56730f2f1706abcc2b7ff7ebdcb45e3956551ba62a37bf184580 -->
+<!-- source-sha256:51e84bd78296073a11d34c47405ff23624cbd1f88289cc6475bfae7f6aacb904 -->
 ## Engineering Principles
 
 - **Modern and idiomatic:** Use current, supported language, framework, and platform conventions. Match surrounding code when it is sound; do not reproduce obsolete patterns merely for consistency.
@@ -54,5 +54,5 @@ For installed-runtime proof, update the source pin in `~/nix-config`, run `ns`, 
 
 ## Heavy jobs on Minworker
 
-Minworker shares 12 GB of RAM across agents. Run direct foreground builds, clippy, Cargo tests and other heavy verification through `agent-heavy <command>`. It queues work under the same host lock as native build and release runners, with lower CPU and I/O priority; it does not depend on a PTT checkout. Invoke runners that already own admission (`scripts/ship`, `release`, `overlay-updates.service`) directly. Use the repository's normal warm build directory, retain Cargo's managed default concurrency, and run each required heavy check once. Formatting, evaluation, Git and searches do not need the heavy-work queue.
+Minworker shares 12 GB of RAM across agents. Run direct foreground builds, clippy, Cargo tests and other heavy verification through `agent-heavy <command>`. It queues work under the same host lock as native build and release runners and runs it in a CPU share of its own, which other sessions' jobs cannot starve; it does not depend on a PTT checkout. Invoke runners that already own admission (`scripts/ship`, `release`, `overlay-updates.service`) directly. Use the repository's normal warm build directory, retain Cargo's managed default concurrency, and run each required heavy check once. Formatting, evaluation, Git and searches do not need the heavy-work queue.
 <!-- clai:instructions:coding:end -->
