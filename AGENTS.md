@@ -39,7 +39,7 @@ For user-facing changes, run `npm run electron:dev` and inspect the actual Elect
 For installed-runtime proof, update the source pin in `~/nix-config`, run `ns`, launch the system `anki-card-forge`, and verify the affected surface there.
 
 <!-- clai:instructions:coding:start -->
-<!-- source-sha256:6673b8e85bc52b8101a9f97c285e77a2951537465f768bf8e5be8b38c4ac8034 -->
+<!-- source-sha256:a659a7de02b20fddaff37dbba7702b2692d5d9c67aba83d813cd9d20c3254525 -->
 ## Engineering Principles
 
 - **Modern and idiomatic:** Use current, supported language, framework, and platform conventions. Match surrounding code when it is sound; do not reproduce obsolete patterns merely for consistency.
@@ -50,8 +50,4 @@ For installed-runtime proof, update the source pin in `~/nix-config`, run `ns`, 
 - **Timing and state:** Use time to model time, not to infer state. When work involves polling, debounce, readiness, timeouts, TTLs, cooldowns, throttling, retries, scheduling, animation timing, or event delivery, load the `timer-inference` skill.
 - **Process identity:** Never identify a process with `pgrep -f` or `pkill -f`, and least of all over ssh: the invoking shell carries your pattern in its own command line and matches too, so a pattern kill takes the session with it and returns 255. `psfind <pattern>` lists matches while excluding its own ancestors; act on a PID you have looked at, and use `psfind -q` when a script needs them.
 - **Context economy:** Prefer quiet output on noisy commands (`-q`, filtered tails) — verbose tool output occupies session context permanently.
-
-## Heavy jobs on Minworker
-
-Minworker shares 12 GB of RAM across agents. Run direct foreground builds, clippy and other heavy commands through `agent-heavy <command>`. It queues work under the same host lock as native build and release runners and runs it in a CPU share of its own, which other sessions' jobs cannot starve; it does not depend on a PTT checkout. Invoke runners that already own admission (`scripts/ship`, `release`, `overlay-updates.service`) directly. Use the repository's normal warm build directory, retain Cargo's managed default concurrency, and run each required heavy check once. Formatting, evaluation, Git and searches do not need the heavy-work queue.
 <!-- clai:instructions:coding:end -->
